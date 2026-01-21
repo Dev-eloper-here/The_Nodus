@@ -42,13 +42,32 @@ export default function ChatInterface({ currentCode }: { currentCode?: string })
                 body: JSON.stringify({ message: userMessage, context: currentCode }),
             });
 
-            if (!response.ok) throw new Error("Failed to fetch response");
+            if (!response.body) throw new Error("No response body");
 
-            const data = await response.json();
-            setMessages(prev => [...prev, { role: "ai", content: data.response }]);
-        } catch (error) {
+            // Add placeholder for AI response
+            setMessages(prev => [...prev, { role: "ai", content: "" }]);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedText = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                const text = decoder.decode(value, { stream: true });
+                accumulatedText += text;
+
+                // Update last message
+                setMessages(prev => {
+                    const newMsgs = [...prev];
+                    newMsgs[newMsgs.length - 1].content = accumulatedText;
+                    return newMsgs;
+                });
+            }
+        } catch (error: any) {
             console.error(error);
-            setMessages(prev => [...prev, { role: "ai", content: "I'm sorry, I encountered an error. Please try again." }]);
+            setMessages(prev => [...prev, { role: "ai", content: `Error: ${error.message || "Unknown error"}` }]);
         } finally {
             setIsLoading(false);
         }

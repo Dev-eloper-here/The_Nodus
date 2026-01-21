@@ -1,14 +1,15 @@
 "use client";
 
-import { Home, NotebookPen, ShieldAlert, Settings, LogOut } from "lucide-react";
+import { Home, NotebookPen, ShieldAlert, Settings, LogOut, Brain } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const navItems = [
     { name: "Home", icon: Home, href: "/" },
-    { name: "My Notes", icon: NotebookPen, href: "/notes" },
-    { name: "Error Vault", icon: ShieldAlert, href: "/error-vault" },
+    { name: "Quiz", icon: Brain, href: "/quiz" },
+    { name: "My Notes", icon: NotebookPen, href: "/notebook" },
+    { name: "Wallet", icon: ShieldAlert, href: "/wallet" },
 ];
 
 export default function Sidebar() {
@@ -26,7 +27,7 @@ export default function Sidebar() {
 
             <nav className="flex-1 px-4 space-y-2 mt-4">
                 {navItems.map((item) => {
-                    const isActive = pathname === item.href;
+                    const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href));
                     return (
                         <Link
                             key={item.name}
@@ -55,10 +56,10 @@ export default function Sidebar() {
             </nav>
 
             <div className="p-4 border-t border-white/5 space-y-2">
-                <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-white/5 hover:text-white transition-colors group">
+                <Link href="/settings" className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-white/5 hover:text-white transition-colors group">
                     <Settings size={20} className="group-hover:rotate-45 transition-transform duration-300" />
                     <span className="text-sm font-medium">Settings</span>
-                </button>
+                </Link>
             </div>
         </div>
     );
