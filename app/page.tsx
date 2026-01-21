@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 
 export default function Home() {
     const [isFocusMode, setIsFocusMode] = useState(false);
+    const [code, setCode] = useState<string>(`// Start coding here...
+console.log('Hello, Nodus!');`);
 
     return (
         <main className="flex h-screen w-full bg-nodus-dark">
@@ -24,7 +26,7 @@ export default function Home() {
                     isFocusMode ? "w-0 opacity-0 overflow-hidden" : "w-[400px] opacity-100"
                 )}
             >
-                <ChatInterface />
+                <ChatInterface currentCode={code} />
             </div>
 
             {/* Right Pane - Code Sandbox */}
@@ -40,7 +42,7 @@ export default function Home() {
                     </button>
                 </header>
                 <div className="flex-1 relative">
-                    <CodeSandbox />
+                    <CodeSandbox code={code} onChange={setCode} />
                 </div>
             </div>
         </main>

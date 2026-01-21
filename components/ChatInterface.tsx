@@ -8,7 +8,7 @@ interface Message {
     content: string;
 }
 
-export default function ChatInterface() {
+export default function ChatInterface({ currentCode }: { currentCode?: string }) {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: "ai",
@@ -39,7 +39,7 @@ export default function ChatInterface() {
             const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: userMessage }),
+                body: JSON.stringify({ message: userMessage, context: currentCode }),
             });
 
             if (!response.ok) throw new Error("Failed to fetch response");

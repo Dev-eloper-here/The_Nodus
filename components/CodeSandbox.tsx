@@ -2,14 +2,14 @@
 
 import Editor from "@monaco-editor/react";
 
-export default function CodeSandbox() {
+export default function CodeSandbox({ code, onChange }: { code: string; onChange: (value: string) => void }) {
     return (
         <div className="h-full w-full bg-[#1e1e1e]">
             <Editor
                 height="100%"
                 defaultLanguage="typescript"
-                defaultValue="// Start coding here...
-console.log('Hello, Nodus!');"
+                value={code}
+                onChange={(value) => onChange(value || "")}
                 theme="vs-dark"
                 options={{
                     fontSize: 14,
@@ -21,7 +21,6 @@ console.log('Hello, Nodus!');"
                     cursorBlinking: "smooth",
                     cursorSmoothCaretAnimation: "on",
                     renderLineHighlight: "all",
-                    backgroundColor: "#1e1e1e",
                 }}
                 // Setup monaco theme to match Nodus if needed, usually vs-dark is close enough
                 onMount={(editor, monaco) => {
