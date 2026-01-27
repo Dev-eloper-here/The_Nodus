@@ -114,15 +114,17 @@ export default function SettingsPage() {
                                             setGeminiKey(e.target.value);
                                             setStatus('idle');
                                         }}
-                                        placeholder="AIza..."
-                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
+                                        placeholder={geminiKey ? "••••••••••••••••" : "AIza..."}
+                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500/50 transition-colors placeholder:text-zinc-600"
                                     />
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                                    </div>
+                                    {geminiKey && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-green-500 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
+                                            Configured
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="mt-2 text-[10px] text-zinc-600">
-                                    Your key is stored locally in <code className="bg-white/10 px-1 rounded">.env.local</code>.
+                                <p className="mt-2 text-[10px] text-zinc-600 flex flex-col gap-1">
+                                    <span>To hide/secure this key in production, set <code>GEMINI_API_KEY</code> in your environment variables.</span>
                                 </p>
                             </div>
                         </div>

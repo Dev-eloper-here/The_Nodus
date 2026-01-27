@@ -5,6 +5,8 @@ import Sidebar from "@/components/Sidebar";
 import { Wallet, ShieldAlert, Lightbulb, Plus, Search, Trash2, ArrowRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { db } from "@/lib/firebase";
+import { collection, query, where, orderBy, getDocs, addDoc } from "firebase/firestore";
 
 // Types
 interface WalletItem {
@@ -40,9 +42,20 @@ export default function WalletPage() {
     const fetchWallet = async () => {
         if (!user) return;
         try {
-            const res = await fetch(`/api/wallet?userId=${user.uid}`);
-            const data = await res.json();
-            if (data.items) setItems(data.items);
+            // Direct Firestore Query
+            const q = query(
+                collection(db, "wallet"),
+                where("userId", "==", user.uid),
+                orderBy("createdAt", "desc")
+            );
+
+            const snapshot = await getDocs(q);
+            const data = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as WalletItem[];
+
+            setItems(data);
         } catch (error) {
             console.error("Failed to fetch wallet:", error);
         } finally {
@@ -56,33 +69,28 @@ export default function WalletPage() {
         const type = activeTab === 'concepts' ? 'concept' : 'error';
         const tags = newTags.split(',').map(t => t.trim()).filter(Boolean);
 
-        const payload: any = {
+        const newItem = {
             title: newTitle,
             type,
             tags: tags.length ? tags : [type],
             summary: newSummary,
-            userId: user.uid
+            userId: user.uid,
+            createdAt: Date.now(),
+            date: new Date().toLocaleDateString(),
+            ...(type === 'error' && { severity: newSeverity }),
+            ...(type === 'error' && { status: 'unresolved' })
         };
 
-        if (type === 'error') {
-            payload.severity = newSeverity;
-            payload.status = 'unresolved';
-            payload.summary = newSummary; // Treating description as summary
-        }
-
         try {
-            await fetch("/api/wallet", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+            await addDoc(collection(db, "wallet"), newItem);
             await fetchWallet();
             setIsAdding(false);
             setNewTitle("");
             setNewSummary("");
             setNewTags("");
-        } catch (error) {
-            alert("Failed to save.");
+        } catch (error: any) {
+            console.error("Failed to save item:", error);
+            alert(`Failed to save: ${error.message}\n\nPlease check your console for more details.`);
         }
     };
 

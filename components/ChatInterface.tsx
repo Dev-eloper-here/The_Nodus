@@ -5,6 +5,7 @@ import { Send, Bot, User, Play, Copy, Check } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 interface Message {
     role: "user" | "ai";
@@ -34,6 +35,8 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    const { user } = useAuth(); // Get authenticated user
 
     const handleSendMessage = async () => {
         if (!inputValue.trim() || isLoading) return;
@@ -65,6 +68,34 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
 
                 const text = decoder.decode(value, { stream: true });
                 accumulatedText += text;
+
+                // Check for Command Block :::SAVE_WALLET={...}:::
+                // Using [\s\S] instead of dot with /s flag for broader TS target compatibility
+                const commandRegex = /:::SAVE_WALLET=([\s\S]*?):::/;
+                const match = accumulatedText.match(commandRegex);
+
+                if (match) {
+                    const jsonString = match[1];
+                    try {
+                        const walletData = JSON.parse(jsonString);
+
+                        // Execute Save
+                        if (user) {
+                            await fetch("/api/wallet", {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ...walletData, userId: user.uid })
+                            });
+                            // Optional: Alert user it happened (or just let it happen silently)
+                            // Ideally, replace the command block with a UI confirmation, but for now just remove it.
+                        }
+                    } catch (e) {
+                        console.error("Failed to execute AI wallet command", e);
+                    }
+
+                    // Remove command from display
+                    accumulatedText = accumulatedText.replace(match[0], "\n\n*(Item saved to Wallet)*");
+                }
 
                 // Update last message
                 setMessages(prev => {

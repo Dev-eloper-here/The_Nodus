@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import ChatInterface from "@/components/ChatInterface";
 import CodeSandbox from "@/components/CodeSandbox";
 import { Maximize2, Minimize2 } from "lucide-react";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
@@ -13,37 +14,44 @@ export default function Home() {
 console.log('Hello, Nodus!');`);
 
     return (
-        <main className="flex h-screen w-full bg-nodus-dark">
-            {/* Left Pane - Sidebar */}
-            <div className="w-64 flex-shrink-0 border-r border-white/10">
+        <main className="h-screen w-full bg-nodus-dark text-white overflow-hidden font-sans flex">
+            {/* Left Pane - Sidebar (Fixed) */}
+            <div className="w-64 flex-shrink-0 border-r border-white/10 flex flex-col">
                 <Sidebar />
             </div>
 
-            {/* Middle Pane - Chat Interface */}
-            <div
-                className={cn(
-                    "transition-all duration-300 ease-in-out border-r border-white/10 flex flex-col",
-                    isFocusMode ? "w-0 opacity-0 overflow-hidden" : "w-[400px] opacity-100"
-                )}
-            >
-                <ChatInterface currentCode={code} onCodeUpdate={setCode} />
-            </div>
+            {/* Resizable Content (Chat + Sandbox) */}
+            <div className="flex-1 min-w-0">
+                <Group direction="horizontal">
+                    {/* Middle Pane - Chat Interface */}
+                    {!isFocusMode && (
+                        <>
+                            <Panel defaultSize={40} minSize={20} className="flex flex-col border-r border-white/10">
+                                <ChatInterface currentCode={code} onCodeUpdate={setCode} />
+                            </Panel>
+                            <Separator className="w-1 bg-white/5 hover:bg-nodus-green/50 transition-colors cursor-col-resize" />
+                        </>
+                    )}
 
-            {/* Right Pane - Code Sandbox */}
-            <div className="flex-1 relative flex flex-col min-w-0">
-                <header className="h-12 border-b border-white/10 flex items-center justify-between px-4 bg-[#1e1e1e]">
-                    <div className="text-sm font-medium text-gray-400">Code Sandbox</div>
-                    <button
-                        onClick={() => setIsFocusMode(!isFocusMode)}
-                        className="flex items-center gap-2 text-xs font-medium text-nodus-green hover:text-green-400 transition-colors"
-                    >
-                        {isFocusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                        {isFocusMode ? "Exit Focus" : "Focus Mode"}
-                    </button>
-                </header>
-                <div className="flex-1 relative">
-                    <CodeSandbox code={code} onChange={setCode} />
-                </div>
+                    {/* Right Pane - Code Sandbox */}
+                    <Panel defaultSize={60} minSize={30} className="flex flex-col">
+                        <div className="h-auto border-b border-white/10 flex flex-col justify-start px-4 py-3 bg-[#1e1e1e] flex-shrink-0 gap-3">
+                            <div className="text-sm font-semibold text-gray-400 truncate w-full">Code Sandbox</div>
+                            <div className="flex items-center w-full">
+                                <button
+                                    onClick={() => setIsFocusMode(!isFocusMode)}
+                                    className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-nodus-green hover:text-green-400 rounded-md text-xs font-medium transition-all border border-white/5"
+                                >
+                                    {isFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                                    {isFocusMode ? "Exit Focus" : "Focus Mode"}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-1 relative">
+                            <CodeSandbox code={code} onChange={setCode} />
+                        </div>
+                    </Panel>
+                </Group>
             </div>
         </main>
     );

@@ -11,7 +11,7 @@ import { Loader2, User as UserIcon } from "lucide-react";
 const navItems = [
     { name: "Home", icon: Home, href: "/" },
     { name: "Quiz", icon: Brain, href: "/quiz" },
-    { name: "My Notes", icon: NotebookPen, href: "/notebook" },
+    { name: "Resource Chat", icon: NotebookPen, href: "/notebook" },
     { name: "Wallet", icon: ShieldAlert, href: "/wallet" },
 ];
 

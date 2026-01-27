@@ -57,6 +57,13 @@ export async function POST(request: NextRequest) {
             finalPrompt = `CONTEXT (User's Code Editor):\n\`\`\`${context}\`\`\`\n\nUSER QUESTION: ${message}`;
         }
 
+        // TOOL: Wallet Saving Instruction
+        finalPrompt = `SYSTEM INSTRUCTION: If the user explicitly asks to save a concept or error to their wallet, you MUST output a JSON command block at the end of your response.
+        Format: :::SAVE_WALLET={"title": "Short Title", "type": "concept" | "error", "summary": "Explanation", "tags": ["tag1", "tag2"], "severity": "low" | "medium" | "high"}:::
+        Do not output this block unless requested.
+        
+        ${finalPrompt}`;
+
         // 2. Add RAG Context (Notebook Sources)
         const sourceIds = (sources as NoteSource[])?.map(s => s.id) || [];
 
