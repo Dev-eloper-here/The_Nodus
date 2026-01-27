@@ -3,12 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from 'fs';
 import path from 'path';
 
-
 export async function GET(request: NextRequest) {
     try {
         const envPath = path.join(process.cwd(), '.env.local');
         if (!fs.existsSync(envPath)) {
-            return NextResponse.json({ provider: 'gemini', geminiKey: '', openaiKey: '' });
+            return NextResponse.json({ geminiKey: '' });
         }
 
         const content = fs.readFileSync(envPath, 'utf-8');
@@ -18,9 +17,7 @@ export async function GET(request: NextRequest) {
         };
 
         return NextResponse.json({
-            provider: getVal('NEXT_PUBLIC_AI_PROVIDER') === 'openai' ? 'openai' : 'gemini',
-            geminiKey: getVal('GEMINI_API_KEY'), // sending back logic so UI can populate. HTTPS is assumed for safety or localhost.
-            openaiKey: getVal('OPENAI_API_KEY')
+            geminiKey: getVal('GEMINI_API_KEY')
         });
 
     } catch (error) {
@@ -30,18 +27,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { geminiKey, openaiKey, provider } = await request.json();
+        const { geminiKey } = await request.json();
 
         const envPath = path.join(process.cwd(), '.env.local');
 
+        // Simple write - solely focusing on essential config
+        // In real app, we should parse existing, but here we overwrite for simplicity/stability as requested.
         let envContent = "";
-        // Read existing if exists to avoid wiping others? 
-        // For this user context, simple overwrite or append is likely fine. 
-        // Let's just write the keys.
-
         if (geminiKey) envContent += `GEMINI_API_KEY=${geminiKey}\n`;
-        if (openaiKey) envContent += `OPENAI_API_KEY=${openaiKey}\n`;
-        if (provider) envContent += `NEXT_PUBLIC_AI_PROVIDER=${provider}\n`;
+        envContent += `NEXT_PUBLIC_AI_PROVIDER=gemini\n`; // Force provider
 
         fs.writeFileSync(envPath, envContent);
 

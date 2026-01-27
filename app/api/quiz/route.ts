@@ -1,6 +1,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import { genAI, GEMINI_MODEL, openai, OPENAI_MODEL, AI_PROVIDER } from "@/lib/ai";
+import { genAI, GEMINI_MODEL } from "@/lib/ai";
+
+// Ensure Node.js runtime for stability
+export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
     try {
@@ -12,7 +15,6 @@ export async function POST(request: NextRequest) {
 
         const prompt = `Generate a quiz about "${topic}". 
         Create 5 distinct multiple-choice questions. 
-        Return ONLY valid JSON array with no markdown code blocks.
         Format:
         [
             {
@@ -23,27 +25,27 @@ export async function POST(request: NextRequest) {
             }
         ]`;
 
-        let questions;
+        // Use standard Gemini logic with JSON enforcement
+        const model = genAI.getGenerativeModel({
+            model: GEMINI_MODEL,
+            generationConfig: { responseMimeType: "application/json" }
+        });
 
-        if (AI_PROVIDER === 'openai') {
-            const completion = await openai.chat.completions.create({
-                model: OPENAI_MODEL,
-                messages: [
-                    { role: "system", content: "You are a quiz generator. Output valid JSON only." },
-                    { role: "user", content: prompt }
-                ],
-                // response_format: { type: "json_object" } // enforcing JSON if model supports
-            });
-            const text = completion.choices[0].message.content || "[]";
-            const cleanJson = text.replace(/```json\n?|\n?```/g, "").trim();
-            questions = JSON.parse(cleanJson);
-        } else {
-            // Gemini
-            const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-            const result = await model.generateContent(prompt);
-            const responseText = result.response.text();
-            const cleanJson = responseText.replace(/```json\n?|\n?```/g, "").trim();
-            questions = JSON.parse(cleanJson);
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+
+        let questions;
+        try {
+            questions = JSON.parse(responseText);
+        } catch (e) {
+            console.error("Failed to parse JSON", responseText);
+            // Fallback cleanup
+            const clean = responseText.replace(/```json\n?|\n?```/g, "").trim();
+            try {
+                questions = JSON.parse(clean);
+            } catch (e2) {
+                throw new Error("AI returned invalid JSON format.");
+            }
         }
 
         return NextResponse.json({ questions });

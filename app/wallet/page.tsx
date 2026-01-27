@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Wallet, ShieldAlert, Lightbulb, Plus, Search, Trash2, ArrowRight } from "lucide-react";
+import { Wallet, ShieldAlert, Lightbulb, Plus, Search, Trash2, ArrowRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 // Types
 interface WalletItem {
@@ -11,19 +12,79 @@ interface WalletItem {
     title: string;
     date: string;
     tags: string[];
-}
-
-interface ConceptItem extends WalletItem {
-    summary: string;
-}
-
-interface ErrorItem extends WalletItem {
-    severity: 'low' | 'medium' | 'high';
-    status: 'unresolved' | 'resolved';
+    type: 'concept' | 'error';
+    summary?: string; // for concepts
+    severity?: 'low' | 'medium' | 'high'; // for errors
+    status?: 'unresolved' | 'resolved'; // for errors
 }
 
 export default function WalletPage() {
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<'concepts' | 'errors'>('concepts');
+    const [items, setItems] = useState<WalletItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isAdding, setIsAdding] = useState(false);
+
+    // Form State
+    const [newTitle, setNewTitle] = useState("");
+    const [newSummary, setNewSummary] = useState("");
+    const [newTags, setNewTags] = useState("");
+    const [newSeverity, setNewSeverity] = useState("medium");
+
+    useEffect(() => {
+        if (user) fetchWallet();
+        // If user is null (not logged in), we might want to clear items or show loading?
+        // For now, let's just wait for user.
+    }, [user]);
+
+    const fetchWallet = async () => {
+        if (!user) return;
+        try {
+            const res = await fetch(`/api/wallet?userId=${user.uid}`);
+            const data = await res.json();
+            if (data.items) setItems(data.items);
+        } catch (error) {
+            console.error("Failed to fetch wallet:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAddItem = async () => {
+        if (!newTitle.trim() || !user) return;
+
+        const type = activeTab === 'concepts' ? 'concept' : 'error';
+        const tags = newTags.split(',').map(t => t.trim()).filter(Boolean);
+
+        const payload: any = {
+            title: newTitle,
+            type,
+            tags: tags.length ? tags : [type],
+            summary: newSummary,
+            userId: user.uid
+        };
+
+        if (type === 'error') {
+            payload.severity = newSeverity;
+            payload.status = 'unresolved';
+            payload.summary = newSummary; // Treating description as summary
+        }
+
+        try {
+            await fetch("/api/wallet", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            await fetchWallet();
+            setIsAdding(false);
+            setNewTitle("");
+            setNewSummary("");
+            setNewTags("");
+        } catch (error) {
+            alert("Failed to save.");
+        }
+    };
 
     return (
         <main className="flex h-screen w-full bg-[#121212] text-white overflow-hidden font-sans">
@@ -77,12 +138,68 @@ export default function WalletPage() {
                     </div>
                 </div>
 
+                {/* Add Item Modal / Inline Form */}
+                {isAdding && (
+                    <div className="mx-8 mb-8 p-6 bg-[#1e1e1e] border border-white/10 rounded-2xl animate-in slide-in-from-top-4">
+                        <div className="flex justify-between mb-4">
+                            <h3 className="font-semibold">{activeTab === 'concepts' ? "New Concept" : "Log Error"}</h3>
+                            <button onClick={() => setIsAdding(false)}><X size={18} /></button>
+                        </div>
+                        <div className="space-y-4">
+                            <input
+                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm"
+                                placeholder="Title (e.g. React Hooks)"
+                                value={newTitle}
+                                onChange={e => setNewTitle(e.target.value)}
+                            />
+                            <textarea
+                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm h-24"
+                                placeholder={activeTab === 'concepts' ? "Summary of what you learned..." : "Explain the error and fix..."}
+                                value={newSummary}
+                                onChange={e => setNewSummary(e.target.value)}
+                            />
+                            <input
+                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm"
+                                placeholder="Tags (comma separated)"
+                                value={newTags}
+                                onChange={e => setNewTags(e.target.value)}
+                            />
+                            {activeTab === 'errors' && (
+                                <select
+                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm"
+                                    value={newSeverity}
+                                    onChange={e => setNewSeverity(e.target.value)}
+                                >
+                                    <option value="low">Low Severity</option>
+                                    <option value="medium">Medium Severity</option>
+                                    <option value="high">High Severity</option>
+                                </select>
+                            )}
+                            <div className="flex justify-end gap-2">
+                                <button onClick={() => setIsAdding(false)} className="px-4 py-2 text-sm text-zinc-400">Cancel</button>
+                                <button onClick={handleAddItem} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm">Save Item</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+
                 {/* Content Area */}
                 <div className="flex-1 overflow-y-auto px-8 pb-8">
-                    {activeTab === 'concepts' ? (
-                        <ConceptWalletSection />
+                    {!user ? (
+                        <div className="text-center text-zinc-500 mt-20">Please sign in to view your wallet.</div>
+                    ) : isLoading ? (
+                        <div className="text-center text-zinc-500 mt-20">Loading wallet...</div>
+                    ) : activeTab === 'concepts' ? (
+                        <ConceptWalletSection
+                            data={items.filter(i => i.type === 'concept')}
+                            onAdd={() => setIsAdding(true)}
+                        />
                     ) : (
-                        <ErrorWalletSection />
+                        <ErrorWalletSection
+                            data={items.filter(i => i.type === 'error')}
+                            onAdd={() => setIsAdding(true)}
+                        />
                     )}
                 </div>
             </div>
@@ -90,13 +207,7 @@ export default function WalletPage() {
     );
 }
 
-function ConceptWalletSection() {
-    // Mock Data
-    const concepts: ConceptItem[] = [
-        { id: '1', title: 'React Hooks Lifecycle', date: '2 hrs ago', tags: ['React', 'Hooks'], summary: 'Understanding how useEffect replaces lifecycle methods like componentDidMount.' },
-        { id: '2', title: 'Python List Comprehensions', date: 'Yesterday', tags: ['Python', 'Basics'], summary: 'Concise way to create lists using brackets and loops in a single line.' },
-    ];
-
+function ConceptWalletSection({ data, onAdd }: { data: WalletItem[], onAdd: () => void }) {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
@@ -104,18 +215,18 @@ function ConceptWalletSection() {
                     <Lightbulb size={18} className="text-yellow-500" />
                     Saved Concepts
                 </h2>
-                <button className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 text-yellow-500 text-sm font-medium rounded-lg hover:bg-yellow-500/20 transition-colors border border-yellow-500/20">
+                <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 text-yellow-500 text-sm font-medium rounded-lg hover:bg-yellow-500/20 transition-colors border border-yellow-500/20">
                     <Plus size={16} />
                     New Concept
                 </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {concepts.map((concept) => (
+                {data.map((concept) => (
                     <div key={concept.id} className="group bg-[#1e1e1e] border border-white/5 rounded-2xl p-5 hover:border-yellow-500/30 transition-all hover:shadow-lg hover:shadow-yellow-500/5 cursor-pointer">
                         <div className="flex justify-between items-start mb-3">
                             <div className="flex gap-2 flex-wrap">
-                                {concept.tags.map(tag => (
+                                {concept.tags?.map(tag => (
                                     <span key={tag} className="text-[10px] px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/10">
                                         {tag}
                                     </span>
@@ -127,31 +238,24 @@ function ConceptWalletSection() {
                         <p className="text-sm text-zinc-400 line-clamp-3 leading-relaxed mb-4">
                             {concept.summary}
                         </p>
-                        <div className="flex items-center justify-end">
-                            <ArrowRight size={16} className="text-zinc-600 group-hover:text-white transition-colors group-hover:translate-x-1 duration-300" />
-                        </div>
                     </div>
                 ))}
 
-                {/* Empty State / Add New Placeholder */}
-                <div className="bg-[#1e1e1e]/50 border-2 border-dashed border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer hover:border-white/10 hover:bg-[#1e1e1e] transition-all min-h-[200px]">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-3">
-                        <Plus size={20} className="text-zinc-500" />
+                {/* Empty State */}
+                {data.length === 0 && (
+                    <div onClick={onAdd} className="bg-[#1e1e1e]/50 border-2 border-dashed border-white/5 rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer hover:border-white/10 hover:bg-[#1e1e1e] transition-all min-h-[200px]">
+                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-3">
+                            <Plus size={20} className="text-zinc-500" />
+                        </div>
+                        <p className="text-sm font-medium text-zinc-400">Save your first concept</p>
                     </div>
-                    <p className="text-sm font-medium text-zinc-400">Save a new concept</p>
-                </div>
+                )}
             </div>
         </div>
     );
 }
 
-function ErrorWalletSection() {
-    // Mock Data
-    const errors: ErrorItem[] = [
-        { id: '1', title: 'Hydration Mismatch Error', date: '1 day ago', tags: ['Next.js', 'React'], severity: 'medium', status: 'unresolved' },
-        { id: '2', title: 'CORS Policy Block', date: '3 days ago', tags: ['Network', 'API'], severity: 'high', status: 'resolved' },
-    ];
-
+function ErrorWalletSection({ data, onAdd }: { data: WalletItem[], onAdd: () => void }) {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
@@ -159,14 +263,14 @@ function ErrorWalletSection() {
                     <ShieldAlert size={18} className="text-red-500" />
                     Error Logs
                 </h2>
-                <button className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 text-sm font-medium rounded-lg hover:bg-red-500/20 transition-colors border border-red-500/20">
+                <button onClick={onAdd} className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-500 text-sm font-medium rounded-lg hover:bg-red-500/20 transition-colors border border-red-500/20">
                     <Plus size={16} />
                     Log Error
                 </button>
             </div>
 
             <div className="space-y-3">
-                {errors.map((error) => (
+                {data.map((error) => (
                     <div key={error.id} className="group flex items-center p-4 bg-[#1e1e1e] border border-white/5 rounded-xl hover:border-red-500/30 transition-all cursor-pointer">
                         <div className={cn(
                             "w-2 h-2 rounded-full mr-4",
@@ -185,7 +289,7 @@ function ErrorWalletSection() {
                                 <span>{error.date}</span>
                                 <span>•</span>
                                 <div className="flex gap-1">
-                                    {error.tags.map(tag => <span key={tag} className="text-zinc-400">#{tag}</span>)}
+                                    {error.tags?.map(tag => <span key={tag} className="text-zinc-400">#{tag}</span>)}
                                 </div>
                             </div>
                         </div>
@@ -197,6 +301,11 @@ function ErrorWalletSection() {
                         </div>
                     </div>
                 ))}
+                {data.length === 0 && (
+                    <div onClick={onAdd} className="bg-[#1e1e1e]/50 border-2 border-dashed border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-white/10 hover:bg-[#1e1e1e] transition-all">
+                        <p className="text-sm font-medium text-zinc-400">No errors logged manually yet</p>
+                    </div>
+                )}
             </div>
         </div>
     );

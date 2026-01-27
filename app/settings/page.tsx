@@ -1,15 +1,17 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Settings, Key, Save, CheckCircle, XCircle, Loader2, Bot, Sparkles } from "lucide-react";
+import { Settings, Key, Save, CheckCircle, XCircle, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
-    const [provider, setProvider] = useState<'gemini' | 'openai'>('gemini');
+    // Hardcoded to Gemini
+    const provider = 'gemini';
     const [geminiKey, setGeminiKey] = useState("");
-    const [openaiKey, setOpenaiKey] = useState("");
 
+    // Status
     const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
     const [message, setMessage] = useState("");
 
@@ -19,9 +21,7 @@ export default function SettingsPage() {
             .then(res => res.json())
             .then(data => {
                 if (data) {
-                    if (data.provider) setProvider(data.provider);
                     if (data.geminiKey) setGeminiKey(data.geminiKey);
-                    if (data.openaiKey) setOpenaiKey(data.openaiKey);
                 }
             })
             .catch(err => console.error("Failed to load settings", err));
@@ -37,8 +37,7 @@ export default function SettingsPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     geminiKey,
-                    openaiKey,
-                    provider
+                    provider: 'gemini'
                 }),
             });
 
@@ -46,7 +45,7 @@ export default function SettingsPage() {
 
             if (res.ok) {
                 setStatus('success');
-                setMessage("Settings saved! Important: Restart your server to apply API changes.");
+                setMessage("Settings saved! Please restart the server to apply changes.");
             } else {
                 throw new Error(data.error);
             }
@@ -71,45 +70,25 @@ export default function SettingsPage() {
                         </div>
                         <h1 className="text-2xl font-bold">Settings</h1>
                     </div>
-                    <p className="text-zinc-400">Configure your AI providers and application preferences.</p>
+                    <p className="text-zinc-400">Configure your application preferences.</p>
                 </header>
 
                 <div className="max-w-2xl space-y-8">
 
-                    {/* Provider Selection */}
+                    {/* Active Provider Info */}
                     <section className="bg-[#1e1e1e] border border-white/5 rounded-2xl p-6">
                         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                            <Bot size={18} className="text-blue-400" />
-                            Active AI Provider
+                            <Sparkles size={18} className="text-blue-400" />
+                            AI Provider
                         </h2>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                onClick={() => setProvider('gemini')}
-                                className={cn(
-                                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 hover:bg-white/5",
-                                    provider === 'gemini'
-                                        ? "border-blue-500 bg-blue-500/10 text-white"
-                                        : "border-white/10 text-zinc-500"
-                                )}
-                            >
-                                <Sparkles size={24} className={provider === 'gemini' ? "text-blue-400" : "text-zinc-600"} />
-                                <span className="font-semibold">Google Gemini</span>
-                                <span className="text-[10px] text-zinc-500">Fast, Long Context, Free Tier</span>
-                            </button>
-
-                            <button
-                                onClick={() => setProvider('openai')}
-                                className={cn(
-                                    "flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all gap-2 hover:bg-white/5",
-                                    provider === 'openai'
-                                        ? "border-green-500 bg-green-500/10 text-white"
-                                        : "border-white/10 text-zinc-500"
-                                )}
-                            >
-                                <Bot size={24} className={provider === 'openai' ? "text-green-400" : "text-zinc-600"} />
-                                <span className="font-semibold">OpenAI (ChatGPT)</span>
-                                <span className="text-[10px] text-zinc-500">High Quality, Industry Standard</span>
-                            </button>
+                        <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                <Sparkles size={24} className="text-white" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-white">Google Gemini (Vertex AI)</h3>
+                                <p className="text-xs text-blue-200">Active & Configured</p>
+                            </div>
                         </div>
                     </section>
 
@@ -118,10 +97,10 @@ export default function SettingsPage() {
                         <div>
                             <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
                                 <Key size={18} className="text-nodus-green" />
-                                API Keys
+                                API Configuration
                             </h2>
                             <p className="text-xs text-zinc-500 mb-6">
-                                Enter keys for the services you want to use. Keys are stored locally in .env.local.
+                                Update your Google Gemini API Key here.
                             </p>
 
                             {/* Gemini Input */}
@@ -131,31 +110,20 @@ export default function SettingsPage() {
                                     <input
                                         type="password"
                                         value={geminiKey}
-                                        onChange={(e) => setGeminiKey(e.target.value)}
+                                        onChange={(e) => {
+                                            setGeminiKey(e.target.value);
+                                            setStatus('idle');
+                                        }}
                                         placeholder="AIza..."
                                         className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500/50 transition-colors"
                                     />
                                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                        {provider === 'gemini' && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />}
+                                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* OpenAI Input */}
-                            <div>
-                                <label className="block text-xs font-medium text-zinc-400 mb-2">OpenAI API Key</label>
-                                <div className="relative">
-                                    <input
-                                        type="password"
-                                        value={openaiKey}
-                                        onChange={(e) => setOpenaiKey(e.target.value)}
-                                        placeholder="sk-..."
-                                        className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500/50 transition-colors"
-                                    />
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                        {provider === 'openai' && <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />}
-                                    </div>
-                                </div>
+                                <p className="mt-2 text-[10px] text-zinc-600">
+                                    Your key is stored locally in <code className="bg-white/10 px-1 rounded">.env.local</code>.
+                                </p>
                             </div>
                         </div>
 
@@ -176,7 +144,7 @@ export default function SettingsPage() {
                         <div className="flex justify-end pt-4 border-t border-white/5">
                             <button
                                 onClick={handleSave}
-                                disabled={status === 'testing'}
+                                disabled={status === 'testing' || !geminiKey.trim()}
                                 className="flex items-center gap-2 px-6 py-2.5 bg-white text-black font-semibold rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50"
                             >
                                 {status === 'testing' ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}

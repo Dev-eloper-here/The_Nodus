@@ -1,9 +1,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import { genAI, GEMINI_MODEL, openai, OPENAI_MODEL, AI_PROVIDER } from "@/lib/ai";
+import { genAI as chatGenAI, GEMINI_MODEL } from "@/lib/ai";
+import { embedText } from "@/lib/gemini";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, query, where, limit } from "firebase/firestore";
 import { cosineSimilarity } from "@/lib/vector";
+import { NoteSource, NoteChunk } from "@/lib/types";
 
 // Helper: Fetch Unresolved Errors (Proactive Mentoring)
 async function fetchActiveErrors() {
@@ -15,20 +17,17 @@ async function fetchActiveErrors() {
 // Helper: RAG Retrieval
 async function retrieveRelevantContext(message: string, sourceIds: string[]) {
     // 1. Embed string
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
-    const result = await embeddingModel.embedContent(message);
-    const queryVector = result.embedding.values;
+    const queryVector = await embedText(message);
 
     // 2. Fetch all chunks from active sources
-    // Note: In production, use Vector Search (e.g. Pinecone or Firestore Vector Search)
-    // For Hackathon prototype with small docs, brute-force client-side cosine similarity is fine.
-    let allChunks: any[] = [];
+    // Note: In real app, use Vector Search. For MVP, fetch all and cosine locally.
+    let allChunks: NoteChunk[] = [];
 
     for (const sourceId of sourceIds) {
         const chunksRef = collection(db, "sources", sourceId, "chunks");
         const snapshot = await getDocs(chunksRef);
         snapshot.forEach((doc: any) => {
-            allChunks.push(doc.data());
+            allChunks.push(doc.data() as NoteChunk);
         });
     }
 
@@ -49,45 +48,8 @@ export async function POST(request: NextRequest) {
     try {
         const { message, sources, context } = await request.json();
 
-        // --- OPENAI LOGIC ---
-        if (AI_PROVIDER === 'openai') {
-            // ... (Keep existing simple logic or update similarly if needed)
-            // For brevity, keeping simple as user focused on Gemini
-            // ...
-            // (Truncated for this edit, will keep standard OpenAI fallback)
-            // Actually, I should just copy the previous logic or standard completion
-            const completion = await openai.chat.completions.create({
-                model: OPENAI_MODEL,
-                messages: [{ role: 'system', content: "You are Sage." }, { role: 'user', content: message }],
-                stream: true,
-            });
-            // ... (Stream logic)
-            const stream = new ReadableStream({
-                async start(controller) {
-                    for await (const chunk of completion) {
-                        const text = chunk.choices[0]?.delta?.content || "";
-                        if (text) controller.enqueue(new TextEncoder().encode(text));
-                    }
-                    controller.close();
-                }
-            });
-            return new NextResponse(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
-        }
-
-        // import { GenAI, ... } handled in header
-        // vertexModel removed from imports
-
-        /*
-        // --- VERTEX AI LOGIC ---
-        if (AI_PROVIDER === 'vertex') {
-             // ... Vertex logic commented out as package @google-cloud/vertexai is missing in package.json
-             // and vertexModel is not exported from lib/ai.ts
-             return NextResponse.json({ error: "Vertex AI not valid in this build." }, { status: 500 });
-        }
-        */
-
-        // --- GEMINI LOGIC (Primary) ---
-        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+        // --- GEMINI LOGIC (API Key) ---
+        const model = chatGenAI.getGenerativeModel({ model: GEMINI_MODEL });
         let finalPrompt = message;
 
         // 1. Add Code Context (Sandbox)
@@ -96,16 +58,13 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Add RAG Context (Notebook Sources)
-        if (sources && sources.length > 0) {
-            // Filter sources that are from our new upload system (have IDs)
-            const sourceIds = sources.filter((s: any) => s.id).map((s: any) => s.id);
+        const sourceIds = (sources as NoteSource[])?.map(s => s.id) || [];
 
-            if (sourceIds.length > 0) {
-                console.log("Retrieving RAG context for sources:", sourceIds);
-                const ragText = await retrieveRelevantContext(message, sourceIds);
-                if (ragText) {
-                    finalPrompt = `CONTEXT (Retrieved from User's Notes):\n${ragText}\n\n${finalPrompt}`;
-                }
+        if (sourceIds.length > 0) {
+            console.log("Retrieving RAG context for sources:", sourceIds);
+            const ragText = await retrieveRelevantContext(message, sourceIds);
+            if (ragText) {
+                finalPrompt = `CONTEXT (Retrieved from User's Notes):\n${ragText}\n\n${finalPrompt}`;
             }
         }
 

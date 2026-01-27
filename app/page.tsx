@@ -26,7 +26,7 @@ console.log('Hello, Nodus!');`);
                     isFocusMode ? "w-0 opacity-0 overflow-hidden" : "w-[400px] opacity-100"
                 )}
             >
-                <ChatInterface currentCode={code} />
+                <ChatInterface currentCode={code} onCodeUpdate={setCode} />
             </div>
 
             {/* Right Pane - Code Sandbox */}

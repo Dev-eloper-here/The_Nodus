@@ -10,6 +10,10 @@ export const metadata: Metadata = {
     description: "Advanced AI Coding Tutor Dashboard",
 };
 
+import { AuthProvider } from "@/lib/auth";
+
+// ... (imports)
+
 export default function RootLayout({
     children,
 }: Readonly<{
@@ -18,7 +22,9 @@ export default function RootLayout({
     return (
         <html lang="en" className="dark">
             <body className={cn(inter.className, "bg-nodus-dark text-white h-screen overflow-hidden")}>
-                {children}
+                <AuthProvider>
+                    {children}
+                </AuthProvider>
             </body>
         </html>
     );

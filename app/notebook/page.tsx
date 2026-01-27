@@ -4,30 +4,48 @@ import { useState, useRef, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
 import { Copy, Plus, MessageSquare, StickyNote, FileText, Send, Trash2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { useAuth } from "@/lib/auth";
 
 
-interface Source {
-    id: string; // File name ID
-    name: string;
-    uri: string;
-    mimeType: string;
-}
+import NotebookUploader from "@/components/notebook/NotebookUploader";
+import { NoteSource } from "@/lib/types";
+
+// Removed local Source interface in favor of shared NoteSource
+
 
 interface Message {
     role: 'user' | 'model';
     text: string;
 }
 
+
+
+// ...
+
 export default function NotebookPage() {
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<'sources' | 'chat' | 'notes'>('chat');
-    const [sources, setSources] = useState<Source[]>([]);
+    const [sources, setSources] = useState<NoteSource[]>([]);
+
+    useEffect(() => {
+        if (user) {
+            fetch(`/api/notebook?userId=${user.uid}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.items) setSources(data.items);
+                })
+                .catch(err => console.error("Failed to load sources", err));
+        }
+    }, [user]);
+
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isUploading, setIsUploading] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
 
     // For file input
-    const fileInputRef = useRef<HTMLInputElement>(null);
     // For scrolling chat
     const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -36,35 +54,9 @@ export default function NotebookPage() {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files?.length) return;
-
-        setIsUploading(true);
-        const file = e.target.files[0];
-        const formData = new FormData();
-        formData.append("file", file);
-
-        try {
-            const res = await fetch("/api/upload", {
-                method: "POST",
-                body: formData,
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                setSources(prev => [...prev, data.file]);
-                // Switch to chat after upload
-                setActiveTab('chat');
-            } else {
-                alert("Upload failed: " + data.error);
-            }
-        } catch (err) {
-            console.error(err);
-            alert("Upload failed");
-        } finally {
-            setIsUploading(false);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-        }
+    const handleUploadSuccess = (newSource: NoteSource) => {
+        setSources(prev => [...prev, newSource]);
+        setActiveTab('chat');
     };
 
     const handleSendMessage = async () => {
@@ -142,21 +134,6 @@ export default function NotebookPage() {
                         <span className="text-xs text-zinc-500 bg-white/5 px-2 py-1 rounded border border-white/5">
                             {sources.length} sources active
                         </span>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            className="hidden"
-                            onChange={handleFileSelect}
-                            accept=".pdf,.txt,.md,.js,.ts,.tsx" // Add specific types as needed
-                        />
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
-                            className="px-4 py-2 text-xs font-medium bg-blue-600 hover:bg-blue-500 rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-50"
-                        >
-                            {isUploading ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />}
-                            Add Source
-                        </button>
                     </div>
                 </header>
 
@@ -171,8 +148,12 @@ export default function NotebookPage() {
                             </h2>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                            <div className="mb-4">
+                                <NotebookUploader onUploadSuccess={handleUploadSuccess} />
+                            </div>
+
                             {sources.length === 0 && (
-                                <div className="text-center py-10 text-zinc-600 text-sm border-2 border-dashed border-zinc-800 rounded-xl">
+                                <div className="text-center py-4 text-zinc-600 text-sm">
                                     <FileText className="mx-auto mb-2 opacity-20" size={32} />
                                     No sources yet
                                 </div>
@@ -184,8 +165,8 @@ export default function NotebookPage() {
                                             <FileText size={16} />
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate text-zinc-200">{source.name}</p>
-                                            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{source.mimeType}</p>
+                                            <p className="text-sm font-medium truncate text-zinc-200">{source.title}</p>
+                                            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{source.type}</p>
                                         </div>
                                     </div>
                                     {/* Hover effect background */}
@@ -226,8 +207,10 @@ export default function NotebookPage() {
                                                 ? "bg-blue-600 text-white rounded-br-none"
                                                 : "bg-white/5 text-zinc-200 rounded-bl-none border border-white/5"
                                         )}>
-                                            <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                                                {msg.text}
+                                            <div className="prose prose-invert prose-sm max-w-none leading-relaxed">
+                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                    {msg.text}
+                                                </ReactMarkdown>
                                             </div>
                                         </div>
                                     </div>

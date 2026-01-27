@@ -5,12 +5,71 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
+import { useAuth } from "@/lib/auth";
+import { Loader2, User as UserIcon } from "lucide-react";
+
 const navItems = [
     { name: "Home", icon: Home, href: "/" },
     { name: "Quiz", icon: Brain, href: "/quiz" },
     { name: "My Notes", icon: NotebookPen, href: "/notebook" },
     { name: "Wallet", icon: ShieldAlert, href: "/wallet" },
 ];
+
+function UserProfile() {
+    const { user, signInWithGoogle, logout, loading } = useAuth();
+
+    if (loading) {
+        return (
+            <div className="px-4 py-3 flex items-center justify-center">
+                <Loader2 size={16} className="animate-spin text-zinc-500" />
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <button
+                onClick={() => signInWithGoogle()}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-nodus-green/10 text-nodus-green hover:bg-nodus-green hover:text-white transition-all duration-300 group"
+            >
+                <UserIcon size={20} />
+                <span className="text-sm font-medium">Sign in</span>
+            </button>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-center gap-3 px-4 py-2">
+                {user.photoURL ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={user.photoURL} alt={user.displayName || "User"} className="w-8 h-8 rounded-full border border-white/10" />
+                ) : (
+                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+                        {user.displayName?.[0] || "U"}
+                    </div>
+                )}
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{user.displayName}</p>
+                    <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
+                </div>
+            </div>
+
+            <Link href="/settings" className="flex items-center gap-3 px-4 py-2 w-full rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-colors">
+                <Settings size={16} />
+                <span className="text-xs font-medium">Settings</span>
+            </Link>
+
+            <button
+                onClick={() => logout()}
+                className="flex items-center gap-3 px-4 py-2 w-full rounded-lg hover:bg-red-500/10 text-zinc-400 hover:text-red-400 transition-colors"
+            >
+                <LogOut size={16} />
+                <span className="text-xs font-medium">Log out</span>
+            </button>
+        </div>
+    );
+}
 
 export default function Sidebar() {
     const pathname = usePathname();
@@ -56,10 +115,7 @@ export default function Sidebar() {
             </nav>
 
             <div className="p-4 border-t border-white/5 space-y-2">
-                <Link href="/settings" className="flex items-center gap-3 px-4 py-3 w-full rounded-xl hover:bg-white/5 hover:text-white transition-colors group">
-                    <Settings size={20} className="group-hover:rotate-45 transition-transform duration-300" />
-                    <span className="text-sm font-medium">Settings</span>
-                </Link>
+                <UserProfile />
             </div>
         </div>
     );

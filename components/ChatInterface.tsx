@@ -1,14 +1,22 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User } from "lucide-react";
+import { Send, Bot, User, Play, Copy, Check } from "lucide-react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { cn } from "@/lib/utils";
 
 interface Message {
     role: "user" | "ai";
     content: string;
 }
 
-export default function ChatInterface({ currentCode }: { currentCode?: string }) {
+interface ChatInterfaceProps {
+    currentCode?: string;
+    onCodeUpdate?: (code: string) => void;
+}
+
+export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: "ai",
@@ -73,6 +81,61 @@ export default function ChatInterface({ currentCode }: { currentCode?: string })
         }
     };
 
+    // Custom Code Block Renderer
+    const CodeBlock = ({ inline, className, children, ...props }: any) => {
+        const match = /language-(\w+)/.exec(className || '');
+        const codeContent = String(children).replace(/\n$/, '');
+        const [isCopied, setIsCopied] = useState(false);
+
+        const handleCopy = () => {
+            navigator.clipboard.writeText(codeContent);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        };
+
+        const handleRun = () => {
+            if (onCodeUpdate) {
+                onCodeUpdate(codeContent);
+            }
+        };
+
+        return !inline ? (
+            <div className="relative group my-4 rounded-lg overflow-hidden border border-white/10 bg-[#09090b]">
+                <div className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-white/5">
+                    <span className="text-xs text-zinc-500 font-mono">{match ? match[1] : 'code'}</span>
+                    <div className="flex items-center gap-2">
+                        {onCodeUpdate && (
+                            <button
+                                onClick={handleRun}
+                                className="flex items-center gap-1.5 text-xs text-nodus-green hover:text-green-400 transition-colors px-2 py-1 rounded hover:bg-white/5"
+                                title="Put this code in Editor"
+                            >
+                                <Play size={12} />
+                                Run in Editor
+                            </button>
+                        )}
+                        <button
+                            onClick={handleCopy}
+                            className="text-zinc-500 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
+                            title="Copy Code"
+                        >
+                            {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                    </div>
+                </div>
+                <div className="p-4 overflow-x-auto">
+                    <code className={cn("text-sm font-mono text-zinc-300", className)} {...props}>
+                        {children}
+                    </code>
+                </div>
+            </div>
+        ) : (
+            <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono" {...props}>
+                {children}
+            </code>
+        );
+    };
+
     return (
         <div className="flex flex-col h-full bg-[#121212]">
             {/* Header */}
@@ -95,14 +158,21 @@ export default function ChatInterface({ currentCode }: { currentCode?: string })
                                 <User size={16} className="text-nodus-green" />
                             )}
                         </div>
-                        <div className={`space-y-2 max-w-[80%]`}>
+                        <div className={`space-y-2 max-w-[85%]`}>
                             <div className={`p-4 rounded-2xl border ${msg.role === 'ai'
                                 ? 'bg-[#1e1e1e] rounded-tl-none border-white/5'
                                 : 'bg-nodus-green/10 rounded-tr-none border-nodus-green/20'
                                 }`}>
-                                <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                                    {msg.content}
-                                </p>
+                                <div className="prose prose-invert prose-sm max-w-none leading-relaxed break-words">
+                                    <ReactMarkdown
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                            code: CodeBlock
+                                        }}
+                                    >
+                                        {msg.content}
+                                    </ReactMarkdown>
+                                </div>
                             </div>
                         </div>
                     </div>
