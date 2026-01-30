@@ -14,45 +14,51 @@ export default function Home() {
 console.log('Hello, Nodus!');`);
 
     return (
-        <main className="h-screen w-full bg-nodus-dark text-white overflow-hidden font-sans flex">
-            {/* Left Pane - Sidebar (Fixed) */}
-            <div className="w-64 flex-shrink-0 border-r border-white/10 flex flex-col">
-                <Sidebar />
-            </div>
+        <main className="h-screen w-full bg-nodus-dark text-white overflow-hidden font-sans">
+            {/* Main Panel Group wrapping everything */}
+            <Group direction="horizontal" className="h-full w-full">
 
-            {/* Resizable Content (Chat + Sandbox) */}
-            <div className="flex-1 min-w-0">
-                <Group direction="horizontal">
-                    {/* Middle Pane - Chat Interface */}
-                    {!isFocusMode && (
-                        <>
-                            <Panel defaultSize={40} minSize={20} className="flex flex-col border-r border-white/10">
-                                <ChatInterface currentCode={code} onCodeUpdate={setCode} />
-                            </Panel>
-                            <Separator className="w-1 bg-white/5 hover:bg-nodus-green/50 transition-colors cursor-col-resize" />
-                        </>
-                    )}
+                {/* Left Pane - Sidebar */}
+                {/* FIXED: All sizes must be strings to be percentages. Numeric 30 = 30px! */}
+                <Panel defaultSize="20" minSize="15" maxSize="30" className="bg-[#18181b] flex flex-col h-full border-r border-white/5">
+                    <Sidebar />
+                </Panel>
 
-                    {/* Right Pane - Code Sandbox */}
-                    <Panel defaultSize={60} minSize={30} className="flex flex-col">
-                        <div className="h-auto border-b border-white/10 flex flex-col justify-start px-4 py-3 bg-[#1e1e1e] flex-shrink-0 gap-3">
-                            <div className="text-sm font-semibold text-gray-400 truncate w-full">Code Sandbox</div>
-                            <div className="flex items-center w-full">
-                                <button
-                                    onClick={() => setIsFocusMode(!isFocusMode)}
-                                    className="flex items-center justify-center gap-2 w-full px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-nodus-green hover:text-green-400 rounded-md text-xs font-medium transition-all border border-white/5"
-                                >
-                                    {isFocusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                                    {isFocusMode ? "Exit Focus" : "Focus Mode"}
-                                </button>
+                {/* Separator Handle 1 */}
+                <Separator className="w-2 -ml-1 hover:w-2 hover:-ml-1 bg-transparent hover:bg-nodus-green/20 cursor-col-resize transition-all z-50 flex items-center justify-center relative">
+                    <div className="w-[1px] h-full bg-white/10" />
+                </Separator>
+
+                {/* Resizable Content (Chat + Sandbox) */}
+                <Panel defaultSize="80" className="h-full">
+                    <Group direction="horizontal" className="h-full w-full">
+                        {/* Middle Pane - Chat Interface */}
+                        {!isFocusMode && (
+                            <>
+                                <Panel defaultSize="40" minSize="20" className="flex flex-col h-full border-r border-white/5">
+                                    <ChatInterface currentCode={code} onCodeUpdate={setCode} />
+                                </Panel>
+                                <Separator className="w-2 -ml-1 hover:w-2 hover:-ml-1 bg-transparent hover:bg-nodus-green/20 cursor-col-resize transition-all z-50 flex items-center justify-center relative">
+                                    <div className="w-[1px] h-full bg-white/10" />
+                                </Separator>
+                            </>
+                        )}
+
+                        {/* Right Pane - Code Sandbox */}
+                        <Panel defaultSize="60" minSize="30" className="flex flex-col h-full">
+                            {/* Old Header Removed - Functionality moved to internal floating buttons */}
+                            <div className="flex-1 relative overflow-hidden">
+                                <CodeSandbox
+                                    code={code}
+                                    onChange={setCode}
+                                    isFocusMode={isFocusMode}
+                                    onToggleFocus={() => setIsFocusMode(!isFocusMode)}
+                                />
                             </div>
-                        </div>
-                        <div className="flex-1 relative">
-                            <CodeSandbox code={code} onChange={setCode} />
-                        </div>
-                    </Panel>
-                </Group>
-            </div>
+                        </Panel>
+                    </Group>
+                </Panel>
+            </Group>
         </main>
     );
 }

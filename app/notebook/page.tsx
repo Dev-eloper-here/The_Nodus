@@ -11,6 +11,8 @@ import { useAuth } from "@/lib/auth";
 
 import NotebookUploader from "@/components/notebook/NotebookUploader";
 import { NoteSource } from "@/lib/types";
+import WalletSuggestion from "@/components/wallet/WalletSuggestion";
+import { parseWalletSuggestion } from "@/lib/messageParser";
 
 // Removed local Source interface in favor of shared NoteSource
 
@@ -25,25 +27,65 @@ interface Message {
 // ...
 
 export default function NotebookPage() {
-    const { user } = useAuth();
+    const { user, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<'sources' | 'chat' | 'notes'>('chat');
-    const [sources, setSources] = useState<NoteSource[]>([]);
+    const [sources, setSources] = useState<NoteSource[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem("nodus_notebook_sources");
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (e) {
+                    console.error("Failed to parse sources", e);
+                }
+            }
+        }
+        return [];
+    });
+
+    const [isLoadingSources, setIsLoadingSources] = useState(true);
 
     useEffect(() => {
+        // Wait for auth to initialize
+        if (authLoading) return;
+
         if (user) {
+            console.log("NotebookPage: Fetching sources for user", user.uid);
             fetch(`/api/notebook?userId=${user.uid}`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data.items) setSources(data.items);
+                    console.log("NotebookPage: Fetched sources", data);
+                    if (data.items) {
+                        setSources(data.items);
+                        localStorage.setItem("nodus_notebook_sources", JSON.stringify(data.items));
+                    }
                 })
-                .catch(err => console.error("Failed to load sources", err));
+                .catch(err => console.error("Failed to load sources", err))
+                .finally(() => setIsLoadingSources(false));
+        } else {
+            console.log("NotebookPage: No user found after auth load");
+            setIsLoadingSources(false);
         }
-    }, [user]);
+    }, [user, authLoading]);
 
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<Message[]>(() => {
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem("nodus_notebook_chat_history");
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (e) {
+                    console.error("Failed to parse chat history", e);
+                }
+            }
+        }
+        return [];
+    });
+
     const [input, setInput] = useState("");
     const [isUploading, setIsUploading] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [enableWebSearch, setEnableWebSearch] = useState(false);
 
     // For file input
     // For scrolling chat
@@ -55,8 +97,33 @@ export default function NotebookPage() {
     }, [messages]);
 
     const handleUploadSuccess = (newSource: NoteSource) => {
-        setSources(prev => [...prev, newSource]);
+        setSources(prev => {
+            const updated = [...prev, newSource];
+            localStorage.setItem("nodus_notebook_sources", JSON.stringify(updated));
+            return updated;
+        });
         setActiveTab('chat');
+    };
+
+    const handleDeleteSource = async (sourceId: string) => {
+        if (!confirm("Are you sure you want to remove this source?")) return;
+
+        // Optimistic update
+        setSources(prev => {
+            const updated = prev.filter(s => s.id !== sourceId);
+            localStorage.setItem("nodus_notebook_sources", JSON.stringify(updated));
+            return updated;
+        });
+
+        try {
+            await fetch("/api/notebook", {
+                method: "DELETE",
+                body: JSON.stringify({ sourceId })
+            });
+        } catch (err) {
+            console.error("Failed to delete source", err);
+            // Revert if failed (optional, but good practice. skipped for simplicity)
+        }
     };
 
     const handleSendMessage = async () => {
@@ -73,7 +140,9 @@ export default function NotebookPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: userMsg,
-                    sources: sources
+                    sources: sources, // Pass sources for RAG
+                    history: [...messages, { role: 'user', text: userMsg }], // Pass full history
+                    enableWebSearch // Pass the flag
                 })
             });
 
@@ -108,6 +177,24 @@ export default function NotebookPage() {
             setIsGenerating(false);
         }
     };
+
+    // Save chat history on change (Skip initial load effect as we used lazy init)
+    useEffect(() => {
+        localStorage.setItem("nodus_notebook_chat_history", JSON.stringify(messages));
+    }, [messages]);
+
+    // Notes Persistence
+    const [notes, setNotes] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem("nodus_notebook_notes") || "";
+        }
+        return "";
+    });
+
+    // Save notes on change
+    useEffect(() => {
+        localStorage.setItem("nodus_notebook_notes", notes);
+    }, [notes]);
 
     return (
         <main className="flex h-screen w-full bg-[#121212] text-white overflow-hidden font-sans">
@@ -146,31 +233,66 @@ export default function NotebookPage() {
                             <h2 className="font-medium text-xs text-zinc-400 uppercase tracking-widest flex items-center gap-2">
                                 Sources
                             </h2>
+                            {/* Web Search Checkbox */}
+                            <label className="flex items-center gap-2 cursor-pointer group select-none">
+                                <div className="relative flex items-center justify-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={enableWebSearch}
+                                        onChange={(e) => setEnableWebSearch(e.target.checked)}
+                                        className="peer w-4 h-4 rounded border border-zinc-600 bg-zinc-800/50 checked:bg-green-500 checked:border-green-500 focus:ring-1 focus:ring-green-500/30 transition-all cursor-pointer appearance-none"
+                                    />
+                                    <svg className="absolute w-3 h-3 text-black pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                </div>
+                                <span className={cn("text-xs font-medium transition-colors", enableWebSearch ? "text-green-400" : "text-zinc-500 group-hover:text-zinc-400")}>
+                                    Include Web Search
+                                </span>
+                            </label>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-2">
                             <div className="mb-4">
                                 <NotebookUploader onUploadSuccess={handleUploadSuccess} />
                             </div>
 
-                            {sources.length === 0 && (
+                            {isLoadingSources && (
+                                <div className="flex flex-col gap-2 animate-pulse">
+                                    <div className="h-12 bg-white/5 rounded-xl border border-white/5" />
+                                    <div className="h-12 bg-white/5 rounded-xl border border-white/5" />
+                                </div>
+                            )}
+
+                            {!isLoadingSources && sources.length === 0 && (
                                 <div className="text-center py-4 text-zinc-600 text-sm">
                                     <FileText className="mx-auto mb-2 opacity-20" size={32} />
                                     No sources yet
                                 </div>
                             )}
                             {sources.map(source => (
-                                <div key={source.id} className="p-3 bg-white/5 rounded-xl border border-white/5 hover:border-blue-500/30 cursor-pointer transition-all group relative overflow-hidden">
-                                    <div className="flex items-center gap-3 relative z-10">
-                                        <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-400">
-                                            <FileText size={16} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate text-zinc-200">{source.title}</p>
-                                            <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{source.type}</p>
-                                        </div>
+                                <div key={source.id} className="p-3 bg-white/5 rounded-xl border border-white/5 hover:border-blue-500/30 group relative overflow-hidden flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
+                                        <FileText size={16} />
                                     </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate text-zinc-200">{source.title}</p>
+                                        <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{source.type}</p>
+                                    </div>
+
+                                    {/* Delete Button (Visible on Hover) */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteSource(source.id);
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 hover:bg-white/10 rounded transition-all"
+                                        title="Remove Source"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+
                                     {/* Hover effect background */}
-                                    <div className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+                                    <div className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-500 scale-x-0 group-hover:scale-x-100 transition-transform origin-left pointer-events-none" />
                                 </div>
                             ))}
                         </div>
@@ -191,7 +313,7 @@ export default function NotebookPage() {
                                     <div className="text-center max-w-md">
                                         <h3 className="text-xl font-semibold text-white mb-2">Resources Chat</h3>
                                         <p className="text-sm text-zinc-400">
-                                            Upload documents to the left panel (PDF, Text, Code) and I'll answer questions based on their content.
+                                            Upload documents or enable Web Search to start chatting. I can utilize both your files and Google Search.
                                         </p>
                                     </div>
                                 </div>
@@ -208,10 +330,20 @@ export default function NotebookPage() {
                                                 : "bg-white/5 text-zinc-200 rounded-bl-none border border-white/5"
                                         )}>
                                             <div className="prose prose-invert prose-sm max-w-none leading-relaxed">
-                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                                    {msg.text}
+                                                <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm]}
+                                                    components={{
+                                                        code: CodeBlock,
+                                                    }}
+                                                >
+                                                    {parseWalletSuggestion(msg.text).text}
                                                 </ReactMarkdown>
                                             </div>
+                                            {msg.role === 'model' && parseWalletSuggestion(msg.text).suggestion && (
+                                                <div className="mt-4 pt-4 border-t border-white/5">
+                                                    <WalletSuggestion {...parseWalletSuggestion(msg.text).suggestion!} />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))
@@ -234,25 +366,27 @@ export default function NotebookPage() {
                                             }
                                         }}
                                         className="w-full bg-transparent text-white p-3 min-h-[50px] max-h-[200px] resize-none focus:outline-none text-sm placeholder:text-zinc-600"
-                                        placeholder={sources.length > 0 ? "Ask a question about your sources..." : "Upload a source to start chatting..."}
-                                        disabled={isGenerating || sources.length === 0}
+                                        placeholder="Ask a question..."
+                                        disabled={isGenerating}
                                     />
                                     <button
                                         onClick={handleSendMessage}
-                                        disabled={!input.trim() || isGenerating || sources.length === 0}
+                                        disabled={!input.trim() || isGenerating}
                                         className="p-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:bg-zinc-700 disabled:text-zinc-500 mb-1 mr-1"
                                     >
                                         {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                                     </button>
                                 </div>
+                                <div className="mt-2 text-center">
+                                    <p className="text-[10px] text-zinc-600">
+                                        Gemini 1.5 may display inaccurate info.
+                                    </p>
+                                </div>
                             </div>
-                            <p className="text-center text-[10px] text-zinc-600 mt-2">
-                                Gemini 1.5 may display inaccurate info, including about people, so double-check its responses.
-                            </p>
                         </div>
                     </div>
 
-                    {/* Column 3: Notes (Placeholder for now) */}
+                    {/* Column 3: Notes (Active) */}
                     <div className="w-72 border-l border-white/5 flex flex-col bg-[#18181b]">
                         <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/2">
                             <h2 className="font-medium text-xs text-zinc-400 uppercase tracking-widest flex items-center gap-2">
@@ -262,11 +396,13 @@ export default function NotebookPage() {
                                 <Plus size={16} />
                             </button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4">
-                            <div className="text-center mt-10 text-zinc-600 text-sm">
-                                <StickyNote className="mx-auto mb-2 opacity-20" size={32} />
-                                Take notes here<br />(Feature coming soon)
-                            </div>
+                        <div className="flex-1 p-0">
+                            <textarea
+                                className="w-full h-full bg-transparent text-zinc-300 text-sm p-4 resize-none focus:outline-none font-mono leading-relaxed placeholder:text-zinc-700"
+                                placeholder="Start typing your notes here..."
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                            />
                         </div>
                     </div>
 
@@ -275,3 +411,62 @@ export default function NotebookPage() {
         </main>
     );
 }
+
+// Custom Code Block Renderer (Isolated and Clean logic)
+const CodeBlock = ({ inline, className, children, ...props }: any) => {
+    const match = /language-(\w+)/.exec(className || '');
+    const codeContent = String(children).replace(/\n$/, '');
+    const [isCopied, setIsCopied] = useState(false);
+    const isMultiLine = codeContent.split('\n').length > 1;
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(codeContent);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    // Compact Mode for single lines: Minimal box, no header.
+    if (!inline && !isMultiLine) {
+        // heuristic: if it's short (< 60 chars), render it as an inline badge to prevent breaking text flow
+        if (codeContent.length < 60) {
+            return (
+                <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono whitespace-nowrap inline-block align-middle" {...props}>
+                    {children}
+                </code>
+            );
+        }
+
+        return (
+            <code className="block my-2 px-3 py-2 rounded-lg bg-[#09090b] border border-white/10 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-all shadow-sm" {...props}>
+                {children}
+            </code>
+        );
+    }
+
+    return !inline ? (
+        <div className="relative group my-2 rounded-lg overflow-hidden border border-white/10 bg-[#09090b]">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
+                <span className="text-[10px] text-zinc-500 font-mono">{match ? match[1] : 'code'}</span>
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* No Run button for NotebookPage */}
+                    <button
+                        onClick={handleCopy}
+                        className="text-zinc-500 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
+                        title="Copy Code"
+                    >
+                        {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                    </button>
+                </div>
+            </div>
+            <div className="p-3 overflow-x-auto">
+                <code className={cn("text-xs font-mono text-zinc-300 leading-relaxed", className)} {...props}>
+                    {children}
+                </code>
+            </div>
+        </div>
+    ) : (
+        <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono" {...props}>
+            {children}
+        </code>
+    );
+};

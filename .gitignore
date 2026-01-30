@@ -33,4 +33,7 @@ yarn-error.log*
 .vercel
 
 # Typescript
-*.tsbuildinfo 
+*.tsbuildinfo
+
+# Secrets
+service-account.json 

@@ -27,3 +27,20 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const { sourceId } = await request.json();
+
+        if (!sourceId) {
+            return NextResponse.json({ error: "Source ID required" }, { status: 400 });
+        }
+
+        const { doc, deleteDoc } = await import("firebase/firestore");
+        await deleteDoc(doc(db, "sources", sourceId));
+
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

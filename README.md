@@ -5,6 +5,12 @@
 
 Built for the Google Cloud Hackathon, it leverages **Gemini 1.5 Pro/Flash** to provide deep insights, "NotebookLM-style" Retrieval-Augmented Generation (RAG), and a unique "Wallet" system to track your learning progress and coding mistakes.
 
+
+## 🌐 Live Demo
+Experience Nodus in action: [**Launch Nodus App**](https://the-nodus-46971823496.asia-south2.run.app/)
+
+---
+
 ## 🚀 Key Features
 
 ### 🧠 1. Context-Aware Chat (Sage)

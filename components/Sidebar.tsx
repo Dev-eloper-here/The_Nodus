@@ -75,7 +75,7 @@ export default function Sidebar() {
     const pathname = usePathname();
 
     return (
-        <div className="flex flex-col h-full bg-[#18181b] text-zinc-400 border-r border-white/5">
+        <div className="flex flex-col h-full w-full bg-[#18181b] text-zinc-400 border-r border-white/5">
             <div className="p-6">
                 <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-nodus-green animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />

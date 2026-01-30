@@ -6,11 +6,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { useChatStore, Message } from "@/lib/store";
+import WalletSuggestion from "@/components/wallet/WalletSuggestion";
+import { parseWalletSuggestion } from "@/lib/messageParser";
 
-interface Message {
-    role: "user" | "ai";
-    content: string;
-}
+// interface Message removed as it's now imported from store
 
 interface ChatInterfaceProps {
     currentCode?: string;
@@ -18,12 +18,9 @@ interface ChatInterfaceProps {
 }
 
 export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfaceProps) {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            role: "ai",
-            content: "Hello! I'm Sage, your coding tutor. I see you're starting a new project. How can I assist you today?"
-        }
-    ]);
+    // Global Store
+    const { messages, addMessage, setMessages } = useChatStore();
+
     const [inputValue, setInputValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -41,22 +38,35 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
     const handleSendMessage = async () => {
         if (!inputValue.trim() || isLoading) return;
 
-        const userMessage = inputValue.trim();
+        const userMessageContent = inputValue.trim();
         setInputValue("");
-        setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+
+        // Add User Message to Store
+        const userMsg: Message = { role: "user", content: userMessageContent };
+        addMessage(userMsg);
+
         setIsLoading(true);
 
         try {
+            // Send FULL history + current message
+            // We construct the history from the store's current messages
+            const historyPayload = [...messages, userMsg];
+
             const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: userMessage, context: currentCode }),
+                body: JSON.stringify({
+                    message: userMessageContent,
+                    history: historyPayload,
+                    context: currentCode
+                }),
             });
 
             if (!response.body) throw new Error("No response body");
 
             // Add placeholder for AI response
-            setMessages(prev => [...prev, { role: "ai", content: "" }]);
+            const aiMsg: Message = { role: "ai", content: "" };
+            addMessage(aiMsg);
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -86,8 +96,6 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ ...walletData, userId: user.uid })
                             });
-                            // Optional: Alert user it happened (or just let it happen silently)
-                            // Ideally, replace the command block with a UI confirmation, but for now just remove it.
                         }
                     } catch (e) {
                         console.error("Failed to execute AI wallet command", e);
@@ -97,7 +105,7 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                     accumulatedText = accumulatedText.replace(match[0], "\n\n*(Item saved to Wallet)*");
                 }
 
-                // Update last message
+                // Update last message (AI response)
                 setMessages(prev => {
                     const newMsgs = [...prev];
                     newMsgs[newMsgs.length - 1].content = accumulatedText;
@@ -106,7 +114,7 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
             }
         } catch (error: any) {
             console.error(error);
-            setMessages(prev => [...prev, { role: "ai", content: `Error: ${error.message || "Unknown error"}` }]);
+            addMessage({ role: "ai", content: `Error: ${error.message || "Unknown error"}` });
         } finally {
             setIsLoading(false);
         }
@@ -117,6 +125,7 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
         const match = /language-(\w+)/.exec(className || '');
         const codeContent = String(children).replace(/\n$/, '');
         const [isCopied, setIsCopied] = useState(false);
+        const isMultiLine = codeContent.split('\n').length > 1;
 
         const handleCopy = () => {
             navigator.clipboard.writeText(codeContent);
@@ -130,19 +139,38 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
             }
         };
 
+        // If it's a block (triple backticks) but only one line, check length
+        // heuristic: if it's short (< 60 chars), render it as an inline badge to prevent breaking text flow
+        if (!inline && !isMultiLine) {
+            if (codeContent.length < 60) {
+                return (
+                    <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono whitespace-nowrap inline-block align-middle" {...props}>
+                        {children}
+                    </code>
+                );
+            }
+
+            // Longer single lines (e.g. commands) get the compact block
+            return (
+                <code className="block my-2 px-3 py-2 rounded-lg bg-[#09090b] border border-white/10 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-all shadow-sm" {...props}>
+                    {children}
+                </code>
+            );
+        }
+
         return !inline ? (
             <div className="relative group my-4 rounded-lg overflow-hidden border border-white/10 bg-[#09090b]">
-                <div className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-white/5">
-                    <span className="text-xs text-zinc-500 font-mono">{match ? match[1] : 'code'}</span>
-                    <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
+                    <span className="text-[10px] text-zinc-500 font-mono">{match ? match[1] : 'code'}</span>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         {onCodeUpdate && (
                             <button
                                 onClick={handleRun}
-                                className="flex items-center gap-1.5 text-xs text-nodus-green hover:text-green-400 transition-colors px-2 py-1 rounded hover:bg-white/5"
+                                className="flex items-center gap-1.5 text-[10px] text-nodus-green hover:text-green-400 transition-colors px-2 py-1 rounded hover:bg-white/5"
                                 title="Put this code in Editor"
                             >
-                                <Play size={12} />
-                                Run in Editor
+                                <Play size={10} />
+                                Run
                             </button>
                         )}
                         <button
@@ -154,8 +182,8 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                         </button>
                     </div>
                 </div>
-                <div className="p-4 overflow-x-auto">
-                    <code className={cn("text-sm font-mono text-zinc-300", className)} {...props}>
+                <div className="p-3 overflow-x-auto">
+                    <code className={cn("text-xs font-mono text-zinc-300 leading-relaxed", className)} {...props}>
                         {children}
                     </code>
                 </div>
@@ -201,9 +229,14 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                                             code: CodeBlock
                                         }}
                                     >
-                                        {msg.content}
+                                        {parseWalletSuggestion(msg.content).text}
                                     </ReactMarkdown>
                                 </div>
+                                {msg.role === 'ai' && parseWalletSuggestion(msg.content).suggestion && (
+                                    <div className="mt-4 pt-4 border-t border-white/5">
+                                        <WalletSuggestion {...parseWalletSuggestion(msg.content).suggestion!} />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

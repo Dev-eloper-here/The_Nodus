@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, query, where, limit } from "firebase/firestore";
 import { cosineSimilarity } from "@/lib/vector";
 import { NoteSource, NoteChunk } from "@/lib/types";
+import { Content } from "@google/generative-ai";
 
 // Helper: Fetch Unresolved Errors (Proactive Mentoring)
 async function fetchActiveErrors() {
@@ -46,10 +47,42 @@ async function retrieveRelevantContext(message: string, sourceIds: string[]) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { message, sources, context } = await request.json();
+        const { message, history, sources, context, enableWebSearch } = await request.json();
 
         // --- GEMINI LOGIC (API Key) ---
         const model = chatGenAI.getGenerativeModel({ model: GEMINI_MODEL });
+
+        // CONSTRUCT HISTORY FOR GEMINI (Multi-turn)
+        // Convert store history [{role: 'user', content: 'hi'}] -> Gemini history [{role: 'user', parts: [{text: 'hi'}]}]
+        // Exclude the CURRENT message from history, as it's sent via sendMessage
+        let geminiHistory: Content[] = (history || [])
+            .slice(0, -1) // Remove the very last message which is the current one we are processing
+            .map((msg: any) => ({
+                role: msg.role === 'ai' ? 'model' : 'user',
+                parts: [{ text: msg.content }]
+            }));
+
+        // Gemini Requirement: History must start with 'user' and be alternating.
+        // If the first message is 'model' (e.g. welcome message), remove it.
+        if (geminiHistory.length > 0 && geminiHistory[0].role === 'model') {
+            geminiHistory.shift();
+        }
+
+        // TOOL CONFIGURATION (Web Search)
+        const tools = [];
+        if (enableWebSearch) {
+            tools.push({ googleSearch: {} });
+        }
+
+        // START CHAT SESSION
+        const chat = model.startChat({
+            history: geminiHistory,
+            generationConfig: {
+                maxOutputTokens: 2000,
+            },
+            tools: tools,
+        });
+
         let finalPrompt = message;
 
         // 1. Add Code Context (Sandbox)
@@ -58,9 +91,19 @@ export async function POST(request: NextRequest) {
         }
 
         // TOOL: Wallet Saving Instruction
-        finalPrompt = `SYSTEM INSTRUCTION: If the user explicitly asks to save a concept or error to their wallet, you MUST output a JSON command block at the end of your response.
-        Format: :::SAVE_WALLET={"title": "Short Title", "type": "concept" | "error", "summary": "Explanation", "tags": ["tag1", "tag2"], "severity": "low" | "medium" | "high"}:::
-        Do not output this block unless requested.
+        // Replaced old 'SAVE_WALLET' purely with 'wallet_suggestion' auto-trigger logic.
+        // We now look for the `[SYSTEM REMINDER]` content in the message to forcefully trigger this behavior if needed.
+
+        finalPrompt = `SYSTEM INSTRUCTION: Your goal is to help the user build their "Knowledge Wallet".
+        If the user discusses a Core Coding Concept or specifically asks for an Error Fix:
+        You MUST append a JSON suggestion block at the VERY END of your response.
+        
+        Format:
+        :::wallet_suggestion { "type": "concept", "title": "Concept Name", "summary": "Short summary", "tags": ["tag1"] } :::
+        OR
+        :::wallet_suggestion { "type": "error", "title": "Error Name", "summary": "Fix explanation", "tags": ["tag1"], "severity": "medium" } :::
+        
+        Only suggest one item.
         
         ${finalPrompt}`;
 
@@ -81,7 +124,8 @@ export async function POST(request: NextRequest) {
             finalPrompt = `SYSTEM NOTE: The user has a history of these errors: [${activeErrors}]. If their code shows signs of this, warn them gently.\n\n${finalPrompt}`;
         }
 
-        const result = await model.generateContentStream(finalPrompt);
+        // SEND MESSAGE
+        const result = await chat.sendMessageStream(finalPrompt);
 
         const stream = new ReadableStream({
             async start(controller) {
