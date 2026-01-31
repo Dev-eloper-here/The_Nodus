@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
         let geminiHistory: Content[] = (history || [])
             .slice(0, -1) // Remove the very last message which is the current one we are processing
             .map((msg: any) => ({
-                role: msg.role === 'ai' ? 'model' : 'user',
-                parts: [{ text: msg.content }]
+                role: (msg.role === 'ai' || msg.role === 'model') ? 'model' : 'user',
+                parts: [{ text: msg.content || msg.text || "" }]
             }));
 
         // Gemini Requirement: History must start with 'user' and be alternating.
