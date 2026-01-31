@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
-import { Terminal, Play, ChevronDown, ChevronUp, Maximize2, Minimize2 } from "lucide-react";
+import { Terminal, Play, ChevronDown, ChevronUp, Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const LANGUAGES = [
+    { id: "typescript", name: "TypeScript / JS (Local)", version: "local", piston: null },
+    { id: "javascript", name: "JavaScript (Local)", version: "local", piston: null },
+    { id: "python", name: "Python (Piston)", version: "3.10.0", piston: "python" },
+    { id: "c", name: "C (Piston)", version: "10.2.0", piston: "c" },
+    { id: "cpp", name: "C++ (Piston)", version: "10.2.0", piston: "c++" },
+];
 
 export default function CodeSandbox({
     code,
@@ -18,71 +26,120 @@ export default function CodeSandbox({
 }) {
     const [output, setOutput] = useState<string[]>([]);
     const [isConsoleOpen, setIsConsoleOpen] = useState(true);
+    const [language, setLanguage] = useState(LANGUAGES[0]); // Default TS
+    const [isRunning, setIsRunning] = useState(false);
+
+    // Auto-detect Language
+    useEffect(() => {
+        const lines = code.split('\n').slice(0, 10).join('\n'); // Check first 10 lines
+
+        if (lines.includes("#include <") || lines.includes("int main")) {
+            if (lines.includes("<iostream>") || lines.includes("std::")) {
+                setLanguage(LANGUAGES.find(l => l.id === "cpp") || LANGUAGES[0]);
+            } else {
+                setLanguage(LANGUAGES.find(l => l.id === "c") || LANGUAGES[0]);
+            }
+        } else if (lines.includes("def ") || lines.includes("import ") || (lines.includes("print(") && !lines.includes("console.log"))) {
+            setLanguage(LANGUAGES.find(l => l.id === "python") || LANGUAGES[0]);
+        } else if (lines.includes("console.log") || lines.includes("const ") || lines.includes("let ") || lines.includes("function ")) {
+            setLanguage(LANGUAGES.find(l => l.id === "javascript") || LANGUAGES[0]);
+        }
+    }, [code]);
 
     const runCode = async () => {
         setIsConsoleOpen(true);
-        setOutput([`> Running code...`]);
+        setIsRunning(true);
+        setOutput([`> Running code (${language.name})...`]);
 
         try {
-            // Create a "Sandbox" scope
-            // We capture logs by passing a custom 'console' object into the function scope
-            const logs: string[] = [];
+            // 1. Local Execution (JS/TS)
+            if (!language.piston) {
+                // Create a "Sandbox" scope
+                const logs: string[] = [];
+                const customConsole = {
+                    log: (...args: any[]) => {
+                        const line = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+                        setOutput(prev => [...prev, line]);
+                    },
+                    error: (...args: any[]) => {
+                        const line = args.map(a => String(a)).join(' ');
+                        setOutput(prev => [...prev, `Error: ${line}`]);
+                    },
+                    warn: (...args: any[]) => {
+                        const line = args.map(a => String(a)).join(' ');
+                        setOutput(prev => [...prev, `Warning: ${line}`]);
+                    }
+                };
 
-            const customConsole = {
-                log: (...args: any[]) => {
-                    // Convert args to strings and store them
-                    const line = args.map(a =>
-                        typeof a === 'object' ? JSON.stringify(a) : String(a)
-                    ).join(' ');
+                const wrappedCode = `
+                    return (async () => {
+                        ${code}
+                    })();
+                `;
 
-                    // Update state immediately for realtime feel
-                    setOutput(prev => [...prev, line]);
-                },
-                error: (...args: any[]) => {
-                    const line = args.map(a => String(a)).join(' ');
-                    setOutput(prev => [...prev, `Error: ${line}`]);
-                },
-                warn: (...args: any[]) => {
-                    const line = args.map(a => String(a)).join(' ');
-                    setOutput(prev => [...prev, `Warning: ${line}`]);
+                // Quick TS compiled to JS strip (naive)
+                // In a real app, we'd use swc-wasm, but for this simple sandbox, raw execution functions for simple snippets.
+                // NOTE: Piston or a Bundler is better for complex TS, but for "Coding Tutor" purposes, users usually type valid JS-compatible logic or we should switch TS to Piston too if robustness is needed.
+                // For now, allow valid JS execution.
+                const run = new Function('console', wrappedCode);
+                await run(customConsole);
+                setOutput(prev => [...prev, `> Done.`]);
+            }
+
+            // 2. Remote Execution (Piston API)
+            else {
+                const response = await fetch("https://emkc.org/api/v2/piston/execute", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        language: language.piston,
+                        version: language.version,
+                        files: [{ content: code }]
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.run) {
+                    // Stdout
+                    if (data.run.stdout) {
+                        setOutput(prev => [...prev, ...data.run.stdout.split('\n')]);
+                    }
+                    // Stderr
+                    if (data.run.stderr) {
+                        setOutput(prev => [...prev, `Error: ${data.run.stderr}`]);
+                    }
+                    if (data.run.output && !data.run.stdout && !data.run.stderr) {
+                        setOutput(prev => [...prev, data.run.output]);
+                    }
+
+                    setOutput(prev => [...prev, `> Exited with code ${data.run.code}`]);
+                } else {
+                    setOutput(prev => [...prev, `> Error: Failed to execute via Piston API.`]);
                 }
-            };
-
-            // Wrap code in an async function to support 'await' (top-level await feel)
-            // We shadow the global 'console' with our 'customConsole'
-            const wrappedCode = `
-                return (async () => {
-                    ${code}
-                })();
-            `;
-
-            // Create function with injected dependencies
-            // param names: 'console'
-            const run = new Function('console', wrappedCode);
-
-            // Execute
-            await run(customConsole);
-
-            setOutput(prev => [...prev, `> Done.`]);
+            }
 
         } catch (error: any) {
             setOutput(prev => [...prev, `> Runtime Error: ${error.message}`]);
+        } finally {
+            setIsRunning(false);
         }
     };
 
     return (
         <div className="flex flex-col h-full bg-[#1e1e1e] relative group">
 
-            {/* Header / Toolbar Section (Based on Sketch) */}
+            {/* Header / Toolbar Section */}
             <div className="flex flex-col border-b border-white/10 bg-[#1e1e1e] px-4 py-3 gap-3 flex-shrink-0">
-                {/* 1. Title Line */}
-                <div className="text-sm font-semibold text-gray-200">
-                    Code Sandbox
+                {/* 1. Title Line & Language Selector */}
+                <div className="flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-200">
+                        Code Sandbox
+                    </div>
                 </div>
 
                 {/* 2. Buttons Row */}
                 <div className="flex items-center gap-3">
-                    {/* Focus Mode Button */}
                     <button
                         onClick={onToggleFocus}
                         className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md text-xs font-medium border border-white/10 transition-all shadow-sm"
@@ -91,13 +148,27 @@ export default function CodeSandbox({
                         {isFocusMode ? "Exit Focus" : "Focus Mode"}
                     </button>
 
-                    {/* Run Code Button */}
+                    {/* Language Dropdown (Moved Here) */}
+                    <select
+                        value={language.id}
+                        onChange={(e) => {
+                            const selected = LANGUAGES.find(l => l.id === e.target.value);
+                            if (selected) setLanguage(selected);
+                        }}
+                        className="bg-zinc-800 text-zinc-300 text-xs rounded border border-white/10 px-2 py-1 outline-none focus:border-nodus-green/50"
+                    >
+                        {LANGUAGES.map(lang => (
+                            <option key={lang.id} value={lang.id}>{lang.name}</option>
+                        ))}
+                    </select>
+
                     <button
                         onClick={runCode}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-md text-xs font-medium border border-green-500/30 transition-all shadow-sm"
+                        disabled={isRunning}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white rounded-md text-xs font-medium border border-green-500/30 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Play size={12} fill="currentColor" />
-                        Run Code
+                        {isRunning ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} fill="currentColor" />}
+                        {isRunning ? "Running..." : "Run Code"}
                     </button>
                 </div>
             </div>
@@ -106,7 +177,7 @@ export default function CodeSandbox({
             <div className="flex-1 relative min-h-0">
                 <Editor
                     height="100%"
-                    defaultLanguage="typescript"
+                    language={language.id === "c" || language.id === "cpp" ? "c" : language.id} // Monaco language map
                     value={code}
                     onChange={(value) => onChange(value || "")}
                     theme="vs-dark"

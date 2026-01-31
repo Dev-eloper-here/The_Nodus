@@ -1,6 +1,7 @@
 "use client";
 
-import { Home, NotebookPen, ShieldAlert, Settings, LogOut, Brain } from "lucide-react";
+import { Home, NotebookPen, ShieldAlert, Settings, LogOut, Brain, ChevronRight, ChevronDown, Info, Workflow, Mail } from "lucide-react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -30,10 +31,10 @@ function UserProfile() {
         return (
             <button
                 onClick={() => signInWithGoogle()}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-nodus-green/10 text-nodus-green hover:bg-nodus-green hover:text-white transition-all duration-300 group"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-nodus-green/10 text-nodus-green hover:bg-nodus-green hover:text-white transition-all duration-300 group"
             >
-                <UserIcon size={20} />
-                <span className="text-sm font-medium">Sign in</span>
+                <UserIcon size={16} />
+                <span className="text-xs font-medium">Sign in</span>
             </button>
         );
     }
@@ -55,10 +56,7 @@ function UserProfile() {
                 </div>
             </div>
 
-            <Link href="/settings" className="flex items-center gap-3 px-4 py-2 w-full rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-colors">
-                <Settings size={16} />
-                <span className="text-xs font-medium">Settings</span>
-            </Link>
+
 
             <button
                 onClick={() => logout()}
@@ -73,13 +71,14 @@ function UserProfile() {
 
 export default function Sidebar() {
     const pathname = usePathname();
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     return (
         <div className="flex flex-col h-full w-full bg-[#18181b] text-zinc-400 border-r border-white/5">
             <div className="p-6">
                 <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-nodus-green animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-                    Nodus
+                    Nodus <span className="text-[10px] font-mono bg-white/10 px-1.5 py-0.5 rounded text-zinc-400 border border-white/5">v1.1</span>
                 </h1>
                 <p className="text-xs text-zinc-500 mt-1 font-medium pl-5">AI Coding Tutor</p>
             </div>
@@ -115,6 +114,48 @@ export default function Sidebar() {
             </nav>
 
             <div className="p-4 border-t border-white/5 space-y-2">
+                {/* Settings Popover Trigger - Now Global */}
+                <div className="relative">
+                    <button
+                        onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                        className="flex items-center gap-3 px-4 py-2 w-full rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-all duration-200 group"
+                    >
+                        <Settings
+                            size={16}
+                            className={cn("transition-transform duration-500", isSettingsOpen ? "rotate-90 text-nodus-green" : "group-hover:text-nodus-green")}
+                        />
+                        <span className="text-xs font-medium">Settings & Info</span>
+                        {isSettingsOpen ? <ChevronDown size={14} className="ml-auto" /> : <ChevronRight size={14} className="ml-auto" />}
+                    </button>
+
+                    {/* Settings Menu */}
+                    {isSettingsOpen && (
+                        <div className="absolute bottom-full left-0 w-full mb-2 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
+                            <Link
+                                href="/about"
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-b border-white/5"
+                            >
+                                <Info size={16} className="text-blue-400" />
+                                <span className="text-xs font-medium">About Nodus</span>
+                            </Link>
+                            <Link
+                                href="/userflow"
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-b border-white/5"
+                            >
+                                <Workflow size={16} className="text-purple-400" />
+                                <span className="text-xs font-medium">User Flow</span>
+                            </Link>
+                            <a
+                                href="mailto:devchaudhary.tech@gmail.com"
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"
+                            >
+                                <Mail size={16} className="text-nodus-green" />
+                                <span className="text-xs font-medium">Contact Developer</span>
+                            </a>
+                        </div>
+                    )}
+                </div>
+
                 <UserProfile />
             </div>
         </div>
