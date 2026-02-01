@@ -2,47 +2,38 @@
 
 import { useState, useRef, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Copy, Plus, MessageSquare, StickyNote, FileText, Send, Trash2, Loader2 } from "lucide-react";
+import { Copy, Plus, MessageSquare, StickyNote, FileText, Send, Trash2, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useAuth } from "@/lib/auth";
-
+import { useChatStore, Message } from "@/lib/store";
 
 import NotebookUploader from "@/components/notebook/NotebookUploader";
 import { NoteSource } from "@/lib/types";
 import WalletSuggestion from "@/components/wallet/WalletSuggestion";
 import { parseWalletSuggestion } from "@/lib/messageParser";
 
-// Removed local Source interface in favor of shared NoteSource
-
-
-interface Message {
-    role: 'user' | 'model';
-    text: string;
-}
-
-
-
-// ...
-
 export default function NotebookPage() {
     const { user, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<'sources' | 'chat' | 'notes'>('chat');
-    const [sources, setSources] = useState<NoteSource[]>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem("nodus_notebook_sources");
-            if (saved) {
-                try {
-                    return JSON.parse(saved);
-                } catch (e) {
-                    console.error("Failed to parse sources", e);
-                }
+    const [sources, setSources] = useState<NoteSource[]>([]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem("nodus_notebook_sources");
+        if (saved) {
+            try {
+                setSources(JSON.parse(saved));
+            } catch (e) {
+                console.error("Failed to parse sources", e);
             }
         }
-        return [];
-    });
+    }, []);
 
+    // Global Chat Store
+    const { messages, addMessage, setMessages, currentThreadId, setCurrentThreadId } = useChatStore();
+
+    // Local state for notebook specific UI (sources, notes, etc)
     const [isLoadingSources, setIsLoadingSources] = useState(true);
 
     useEffect(() => {
@@ -68,26 +59,10 @@ export default function NotebookPage() {
         }
     }, [user, authLoading]);
 
-    const [messages, setMessages] = useState<Message[]>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem("nodus_notebook_chat_history");
-            if (saved) {
-                try {
-                    return JSON.parse(saved);
-                } catch (e) {
-                    console.error("Failed to parse chat history", e);
-                }
-            }
-        }
-        return [];
-    });
-
     const [input, setInput] = useState("");
-    const [isUploading, setIsUploading] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [enableWebSearch, setEnableWebSearch] = useState(false);
 
-    // For file input
     // For scrolling chat
     const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -122,26 +97,48 @@ export default function NotebookPage() {
             });
         } catch (err) {
             console.error("Failed to delete source", err);
-            // Revert if failed (optional, but good practice. skipped for simplicity)
         }
     };
 
     const handleSendMessage = async () => {
         if (!input.trim() || isGenerating) return;
 
-        const userMsg = input.trim();
+        const userMsgContent = input.trim();
         setInput("");
-        setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+
+        // Add User Message to Store
+        const userMsg: Message = { role: 'user', content: userMsgContent };
+        addMessage(userMsg); // Using store action
+
         setIsGenerating(true);
+        let activeThreadId = currentThreadId;
 
         try {
+            // 1. Create Thread if not exists (and user is logged in)
+            if (!activeThreadId && user) {
+                const title = userMsgContent.split(' ').slice(0, 5).join(' ') + "...";
+                try {
+                    const { createThread } = await import("@/lib/db");
+                    activeThreadId = await createThread(user.uid, title);
+                    setCurrentThreadId(activeThreadId);
+                } catch (err) {
+                    console.error("Failed to create thread", err);
+                }
+            }
+
+            // 2. Save User Message to Firestore
+            if (activeThreadId && user) {
+                const { addMessageToThread } = await import("@/lib/db");
+                await addMessageToThread(activeThreadId, 'user', userMsgContent);
+            }
+
             const response = await fetch("/api/chat", {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: userMsg,
-                    sources: sources, // Pass sources for RAG
-                    history: [...messages, { role: 'user', text: userMsg }], // Pass full history
+                    message: userMsgContent,
+                    sources: sources, // Pass sources for RAG (Notebook specific feature)
+                    history: messages.concat(userMsg), // Pass full history from store
                     enableWebSearch // Pass the flag
                 })
             });
@@ -149,7 +146,7 @@ export default function NotebookPage() {
             if (!response.body) throw new Error("No response body");
 
             // Add placeholder for model response
-            setMessages(prev => [...prev, { role: 'model', text: "" }]);
+            addMessage({ role: 'ai', content: "" });
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -163,33 +160,43 @@ export default function NotebookPage() {
                 accumulatedText += text;
 
                 // Update last message
-                setMessages(prev => {
+                setMessages((prev) => {
                     const newMsgs = [...prev];
-                    newMsgs[newMsgs.length - 1].text = accumulatedText;
+                    newMsgs[newMsgs.length - 1].content = accumulatedText;
                     return newMsgs;
                 });
             }
 
-        } catch (err) {
+            // 3. Save AI Message to Firestore
+            if (activeThreadId && user) {
+                const { addMessageToThread } = await import("@/lib/db");
+                await addMessageToThread(activeThreadId, 'ai', accumulatedText);
+            }
+
+        } catch (err: any) {
             console.error(err);
-            setMessages(prev => [...prev, { role: 'model', text: "Error generating response." }]);
+            // Update error message
+            setMessages((prev) => {
+                const newMsgs = [...prev];
+                if (newMsgs[newMsgs.length - 1].role === 'ai') {
+                    newMsgs[newMsgs.length - 1].content = "Error generating response.";
+                } else {
+                    newMsgs.push({ role: 'ai', content: "Error generating response." });
+                }
+                return newMsgs;
+            });
         } finally {
             setIsGenerating(false);
         }
     };
 
-    // Save chat history on change (Skip initial load effect as we used lazy init)
-    useEffect(() => {
-        localStorage.setItem("nodus_notebook_chat_history", JSON.stringify(messages));
-    }, [messages]);
-
     // Notes Persistence
-    const [notes, setNotes] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem("nodus_notebook_notes") || "";
-        }
-        return "";
-    });
+    const [notes, setNotes] = useState("");
+
+    useEffect(() => {
+        const saved = localStorage.getItem("nodus_notebook_notes");
+        if (saved) setNotes(saved);
+    }, []);
 
     // Save notes on change
     useEffect(() => {
@@ -228,9 +235,9 @@ export default function NotebookPage() {
                 <div className="flex-1 flex overflow-hidden">
 
                     {/* Column 1: Sources */}
-                    <div className="w-72 border-r border-zinc-200 dark:border-white/5 flex flex-col bg-white dark:bg-[#18181b] transition-colors duration-300">
-                        <div className="p-4 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between bg-zinc-50/50 dark:bg-white/2">
-                            <h2 className="font-medium text-xs text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-72 border-r border-zinc-200 dark:border-white/5 flex flex-col bg-slate-50/50 dark:bg-[#18181b]/50 transition-colors duration-300">
+                        <div className="p-4 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between bg-white dark:bg-[#18181b]">
+                            <h2 className="font-medium text-xs text-blue-500 dark:text-blue-400 uppercase tracking-widest flex items-center gap-2">
                                 Sources
                             </h2>
                             {/* Web Search Checkbox */}
@@ -279,13 +286,13 @@ export default function NotebookPage() {
                                         <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{source.type}</p>
                                     </div>
 
-                                    {/* Delete Button (Visible on Hover) */}
+                                    {/* Delete Button (Always Visible) */}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleDeleteSource(source.id);
                                         }}
-                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-500 hover:text-red-400 hover:bg-white/10 rounded transition-all"
+                                        className="p-1.5 text-zinc-400 hover:text-red-400 hover:bg-white/10 rounded transition-all"
                                         title="Remove Source"
                                     >
                                         <Trash2 size={14} />
@@ -318,35 +325,37 @@ export default function NotebookPage() {
                                     </div>
                                 </div>
                             ) : (
-                                messages.map((msg, idx) => (
-                                    <div key={idx} className={cn(
-                                        "flex w-full",
-                                        msg.role === 'user' ? "justify-end" : "justify-start"
-                                    )}>
-                                        <div className={cn(
-                                            "max-w-[80%] rounded-2xl px-5 py-4 text-sm leading-relaxed shadow-sm",
-                                            msg.role === 'user'
-                                                ? "bg-blue-600 text-white rounded-br-none"
-                                                : "bg-white dark:bg-white/5 text-zinc-800 dark:text-zinc-200 rounded-bl-none border border-zinc-200 dark:border-white/5"
+                                <>
+                                    {messages.map((msg, idx) => (
+                                        <div key={idx} className={cn(
+                                            "flex w-full",
+                                            msg.role === 'user' ? "justify-end" : "justify-start"
                                         )}>
-                                            <div className="prose prose-invert prose-sm max-w-none leading-relaxed">
-                                                <ReactMarkdown
-                                                    remarkPlugins={[remarkGfm]}
-                                                    components={{
-                                                        code: CodeBlock,
-                                                    }}
-                                                >
-                                                    {parseWalletSuggestion(msg.text).text}
-                                                </ReactMarkdown>
-                                            </div>
-                                            {msg.role === 'model' && parseWalletSuggestion(msg.text).suggestion && (
-                                                <div className="mt-4 pt-4 border-t border-white/5">
-                                                    <WalletSuggestion {...parseWalletSuggestion(msg.text).suggestion!} />
+                                            <div className={cn(
+                                                "max-w-[80%] rounded-2xl px-5 py-4 text-sm leading-relaxed shadow-sm",
+                                                msg.role === 'user'
+                                                    ? "bg-blue-600 text-white rounded-br-none"
+                                                    : "bg-white dark:bg-white/5 text-zinc-800 dark:text-zinc-200 rounded-bl-none border border-zinc-200 dark:border-white/5"
+                                            )}>
+                                                <div className="prose prose-invert prose-sm max-w-none leading-relaxed">
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={{
+                                                            code: CodeBlock,
+                                                        }}
+                                                    >
+                                                        {parseWalletSuggestion(msg.content).text}
+                                                    </ReactMarkdown>
                                                 </div>
-                                            )}
+                                                {msg.role === 'ai' && parseWalletSuggestion(msg.content).suggestion && (
+                                                    <div className="mt-4 pt-4 border-t border-white/5">
+                                                        <WalletSuggestion {...parseWalletSuggestion(msg.content).suggestion!} />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))
+                                    ))}
+                                </>
                             )}
                             <div ref={chatEndRef} />
                         </div>
@@ -387,18 +396,18 @@ export default function NotebookPage() {
                     </div>
 
                     {/* Column 3: Notes (Active) */}
-                    <div className="w-72 border-l border-zinc-200 dark:border-white/5 flex flex-col bg-white dark:bg-[#18181b] transition-colors duration-300">
-                        <div className="p-4 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between bg-zinc-50/50 dark:bg-white/2">
-                            <h2 className="font-medium text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-72 border-l border-zinc-200 dark:border-white/5 flex flex-col bg-amber-50/30 dark:bg-[#18181b]/50 transition-colors duration-300">
+                        <div className="p-4 border-b border-amber-100/50 dark:border-white/5 flex items-center justify-between bg-amber-50/50 dark:bg-[#18181b]">
+                            <h2 className="font-medium text-xs text-amber-600 dark:text-amber-500 uppercase tracking-widest flex items-center gap-2">
                                 Notes
                             </h2>
                             <button className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
                                 <Plus size={16} />
                             </button>
                         </div>
-                        <div className="flex-1 p-0">
+                        <div className="flex-1 p-0 bg-amber-50/30 dark:bg-transparent">
                             <textarea
-                                className="w-full h-full bg-transparent text-zinc-900 dark:text-zinc-300 text-sm p-4 resize-none focus:outline-none font-mono leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
+                                className="w-full h-full bg-transparent text-zinc-800 dark:text-zinc-200 text-sm p-4 resize-none focus:outline-none font-mono leading-relaxed placeholder:text-amber-700/30 dark:placeholder:text-zinc-700 selection:bg-amber-200 dark:selection:bg-amber-900/30"
                                 placeholder="Start typing your notes here..."
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
@@ -447,7 +456,7 @@ const CodeBlock = ({ inline, className, children, ...props }: any) => {
         <div className="relative group my-2 rounded-lg overflow-hidden border border-white/10 bg-[#09090b]">
             <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
                 <span className="text-[10px] text-zinc-500 font-mono">{match ? match[1] : 'code'}</span>
-                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 opacity-100 transition-opacity">
                     {/* No Run button for NotebookPage */}
                     <button
                         onClick={handleCopy}

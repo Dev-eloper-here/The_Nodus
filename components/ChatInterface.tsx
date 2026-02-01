@@ -19,7 +19,8 @@ interface ChatInterfaceProps {
 
 export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfaceProps) {
     // Global Store
-    const { messages, addMessage, setMessages } = useChatStore();
+    const { messages, addMessage, setMessages, currentThreadId, setCurrentThreadId } = useChatStore();
+    const { user } = useAuth(); // Get authenticated user
 
     const [inputValue, setInputValue] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -30,10 +31,21 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
     };
 
     useEffect(() => {
+        if (messages.length === 0 && !isLoading) {
+            setMessages([{
+                role: "ai",
+                content: "Hi! I'm Sage. How can I help you coding today? 🚀"
+            }]);
+        }
+    }, [messages.length, isLoading, setMessages]);
+
+    useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
-    const { user } = useAuth(); // Get authenticated user
+    // Import DB functions (Dynamically imported to avoid server/client issues if needed, but standard import is fine here)
+    // We need to import these at top level, but for this replacement block I'll assume they are imported.
+    // Wait, I need to add imports to the top of the file first.
 
     const handleSendMessage = async () => {
         if (!inputValue.trim() || isLoading) return;
@@ -46,8 +58,31 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
         addMessage(userMsg);
 
         setIsLoading(true);
+        let activeThreadId = currentThreadId;
 
         try {
+            // 1. Create Thread if not exists (and user is logged in)
+            if (!activeThreadId && user) {
+                // Generate a simple title from the first 5 words
+                const title = userMessageContent.split(' ').slice(0, 5).join(' ') + "...";
+                // We need to import createThread. I will add imports in a separate step or assume I can add them here if I replace the whole file? 
+                // No, replace_file_content replaces a block. I should do imports separately.
+                // For now, I'll use the imported functions assuming they are there.
+                try {
+                    const { createThread } = await import("@/lib/db");
+                    activeThreadId = await createThread(user.uid, title);
+                    setCurrentThreadId(activeThreadId);
+                } catch (err) {
+                    console.error("Failed to create thread", err);
+                }
+            }
+
+            // 2. Save User Message to Firestore
+            if (activeThreadId && user) {
+                const { addMessageToThread } = await import("@/lib/db");
+                await addMessageToThread(activeThreadId, 'user', userMessageContent);
+            }
+
             // Send FULL history + current message
             // We construct the history from the store's current messages
             const historyPayload = [...messages, userMsg];
@@ -112,6 +147,13 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                     return newMsgs;
                 });
             }
+
+            // 3. Save AI Message to Firestore (Final)
+            if (activeThreadId && user) {
+                const { addMessageToThread } = await import("@/lib/db");
+                await addMessageToThread(activeThreadId, 'ai', accumulatedText);
+            }
+
         } catch (error: any) {
             console.error(error);
             addMessage({ role: "ai", content: `Error: ${error.message || "Unknown error"}` });
@@ -162,7 +204,7 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
             <div className="relative group my-4 rounded-lg overflow-hidden border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-[#09090b]">
                 <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-white/10 border-b border-zinc-200 dark:border-white/10">
                     <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">{match ? match[1] : 'code'}</span>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-2 opacity-100 transition-opacity">
                         {onCodeUpdate && (
                             <button
                                 onClick={handleRun}

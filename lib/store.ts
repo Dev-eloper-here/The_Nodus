@@ -11,6 +11,8 @@ interface ChatState {
     addMessage: (message: Message) => void;
     setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
     clearMessages: () => void;
+    currentThreadId: string | null;
+    setCurrentThreadId: (id: string | null) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -26,7 +28,10 @@ export const useChatStore = create<ChatState>()(
             setMessages: (update) => set((state) => ({
                 messages: typeof update === 'function' ? update(state.messages) : update
             })),
-            clearMessages: () => set({ messages: [] }),
+            clearMessages: () => set({ messages: [], currentThreadId: null }),
+
+            currentThreadId: null,
+            setCurrentThreadId: (id) => set({ currentThreadId: id }),
         }),
         {
             name: 'nodus-chat-storage', // unique name for localStorage
