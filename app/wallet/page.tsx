@@ -134,37 +134,37 @@ export default function WalletPage() {
     };
 
     return (
-        <main className="flex h-screen w-full bg-[#121212] text-white overflow-hidden font-sans">
+        <main className="flex h-screen w-full bg-zinc-50 dark:bg-[#121212] text-zinc-900 dark:text-white overflow-hidden font-sans transition-colors duration-300">
             {/* Left Pane - Sidebar */}
-            <div className="w-64 flex-shrink-0 border-r border-white/5 bg-[#18181b]">
+            <div className="w-64 flex-shrink-0 border-r border-zinc-200 dark:border-white/5 bg-white dark:bg-[#18181b] transition-colors duration-300">
                 <Sidebar />
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 transition-colors duration-300">
                 {/* Header */}
-                <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-[#18181b]">
+                <header className="h-20 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between px-8 bg-white dark:bg-[#18181b] transition-colors duration-300">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                             <Wallet size={20} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-white tracking-tight">Knowledge Wallet</h1>
-                            <p className="text-xs text-zinc-400 font-medium">Manage your saved concepts and error logs</p>
+                            <h1 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">Knowledge Wallet</h1>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Manage your saved concepts and error logs</p>
                         </div>
                     </div>
                 </header>
 
                 {/* Sub-Header / Tabs */}
                 <div className="px-8 py-6">
-                    <div className="flex p-1 bg-[#1e1e1e] rounded-xl border border-white/5 w-fit">
+                    <div className="flex p-1 bg-zinc-100 dark:bg-[#1e1e1e] rounded-xl border border-zinc-200 dark:border-white/5 w-fit transition-colors duration-300">
                         <button
                             onClick={() => setActiveTab('concepts')}
                             className={cn(
                                 "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                                 activeTab === 'concepts'
-                                    ? "bg-[#27272a] text-white shadow-sm ring-1 ring-white/10"
-                                    : "text-zinc-500 hover:text-zinc-300"
+                                    ? "bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-white/10"
+                                    : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
                             )}
                         >
                             <Lightbulb size={16} className={activeTab === 'concepts' ? "text-yellow-500" : ""} />
@@ -175,8 +175,8 @@ export default function WalletPage() {
                             className={cn(
                                 "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
                                 activeTab === 'errors'
-                                    ? "bg-[#27272a] text-white shadow-sm ring-1 ring-white/10"
-                                    : "text-zinc-500 hover:text-zinc-300"
+                                    ? "bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-white/10"
+                                    : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
                             )}
                         >
                             <ShieldAlert size={16} className={activeTab === 'errors' ? "text-red-500" : ""} />
@@ -293,12 +293,12 @@ function ConceptWalletSection({ data, onAdd, onEdit, onDelete }: {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {data.map((concept) => (
-                    <div key={concept.id} className="group bg-[#1e1e1e] border border-white/5 rounded-2xl p-5 hover:border-yellow-500/30 transition-all hover:shadow-lg hover:shadow-yellow-500/5 relative">
+                    <div key={concept.id} className="group bg-white dark:bg-[#1e1e1e] border border-zinc-200 dark:border-white/5 rounded-2xl p-5 hover:border-yellow-500/30 transition-all hover:shadow-lg hover:shadow-yellow-500/5 relative">
                         {/* Card Header */}
                         <div className="flex justify-between items-start mb-3">
                             <div className="flex gap-2 flex-wrap">
                                 {concept.tags?.map(tag => (
-                                    <span key={tag} className="text-[10px] px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/10">
+                                    <span key={tag} className="text-[10px] px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border border-yellow-500/10">
                                         {tag}
                                     </span>
                                 ))}
@@ -306,7 +306,7 @@ function ConceptWalletSection({ data, onAdd, onEdit, onDelete }: {
                             <span className="text-zinc-600 text-[10px]">{concept.date}</span>
                         </div>
 
-                        <h3 className="font-semibold text-white mb-2 group-hover:text-yellow-400 transition-colors">{concept.title}</h3>
+                        <h3 className="font-semibold text-zinc-900 dark:text-white mb-2 group-hover:text-yellow-600 dark:group-hover:text-yellow-400 transition-colors">{concept.title}</h3>
 
                         {/* Summary (Collapsible) */}
                         <div className={cn(
@@ -386,7 +386,7 @@ function ErrorWalletSection({ data, onAdd, onEdit, onDelete }: {
 
             <div className="space-y-3">
                 {data.map((error) => (
-                    <div key={error.id} className="group flex flex-col p-4 bg-[#1e1e1e] border border-white/5 rounded-xl hover:border-red-500/30 transition-all">
+                    <div key={error.id} className="group flex flex-col p-4 bg-white dark:bg-[#1e1e1e] border border-zinc-200 dark:border-white/5 rounded-xl hover:border-red-500/30 transition-all">
 
                         <div className="flex items-center w-full">
                             <div className={cn(
@@ -397,7 +397,7 @@ function ErrorWalletSection({ data, onAdd, onEdit, onDelete }: {
 
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3 mb-1">
-                                    <h3 className="text-sm font-semibold text-white truncate">{error.title}</h3>
+                                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{error.title}</h3>
                                     {error.status === 'resolved' && (
                                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-500 border border-green-500/10">Resolved</span>
                                     )}

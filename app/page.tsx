@@ -14,19 +14,19 @@ export default function Home() {
 console.log('Hello, Nodus!');`);
 
     return (
-        <main className="h-screen w-full bg-nodus-dark text-white overflow-hidden font-sans">
+        <main className="h-screen w-full bg-white dark:bg-nodus-dark text-zinc-900 dark:text-white overflow-hidden font-sans transition-colors duration-300">
             {/* Main Panel Group wrapping everything */}
             <Group direction="horizontal" className="h-full w-full">
 
                 {/* Left Pane - Sidebar */}
                 {/* FIXED: All sizes must be strings to be percentages. Numeric 30 = 30px! */}
-                <Panel defaultSize="20" minSize="15" maxSize="30" className="bg-[#18181b] flex flex-col h-full border-r border-white/5">
+                <Panel defaultSize="20" minSize="15" maxSize="30" className="bg-white dark:bg-[#18181b] flex flex-col h-full border-r border-zinc-200 dark:border-white/5 transition-colors duration-300">
                     <Sidebar />
                 </Panel>
 
                 {/* Separator Handle 1 */}
                 <Separator className="w-2 -ml-1 hover:w-2 hover:-ml-1 bg-transparent hover:bg-nodus-green/20 cursor-col-resize transition-all z-50 flex items-center justify-center relative">
-                    <div className="w-[1px] h-full bg-white/10" />
+                    <div className="w-[1px] h-full bg-zinc-200 dark:bg-white/10" />
                 </Separator>
 
                 {/* Resizable Content (Chat + Sandbox) */}
@@ -35,11 +35,11 @@ console.log('Hello, Nodus!');`);
                         {/* Middle Pane - Chat Interface */}
                         {!isFocusMode && (
                             <>
-                                <Panel defaultSize="40" minSize="20" className="flex flex-col h-full border-r border-white/5">
+                                <Panel defaultSize="40" minSize="20" className="flex flex-col h-full border-r border-zinc-200 dark:border-white/5 transition-colors duration-300">
                                     <ChatInterface currentCode={code} onCodeUpdate={setCode} />
                                 </Panel>
                                 <Separator className="w-2 -ml-1 hover:w-2 hover:-ml-1 bg-transparent hover:bg-nodus-green/20 cursor-col-resize transition-all z-50 flex items-center justify-center relative">
-                                    <div className="w-[1px] h-full bg-white/10" />
+                                    <div className="w-[1px] h-full bg-zinc-200 dark:bg-white/10" />
                                 </Separator>
                             </>
                         )}

@@ -67,9 +67,9 @@ export default function WalletSuggestion({ type, title, summary, tags = [], seve
     }
 
     return (
-        <div className="my-4 border border-white/10 bg-[#1e1e1e] rounded-xl overflow-hidden shadow-lg">
+        <div className="my-4 border border-zinc-200 dark:border-white/10 bg-white dark:bg-[#1e1e1e] rounded-xl overflow-hidden shadow-lg transition-colors duration-300">
             {/* Header */}
-            <div className="px-4 py-3 bg-white/5 border-b border-white/5 flex items-center justify-between">
+            <div className="px-4 py-3 bg-zinc-50 dark:bg-white/5 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between transition-colors duration-300">
                 <div className="flex items-center gap-2">
                     {type === 'concept' ? (
                         <Lightbulb size={16} className="text-yellow-500" />
@@ -83,7 +83,7 @@ export default function WalletSuggestion({ type, title, summary, tags = [], seve
                 {tags.length > 0 && (
                     <div className="flex gap-1">
                         {tags.slice(0, 2).map(tag => (
-                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-500">
+                            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-white/5 text-zinc-600 dark:text-zinc-500">
                                 {tag}
                             </span>
                         ))}
@@ -93,8 +93,8 @@ export default function WalletSuggestion({ type, title, summary, tags = [], seve
 
             {/* Content */}
             <div className="p-4">
-                <h4 className="font-semibold text-white mb-2">{title}</h4>
-                <p className="text-sm text-zinc-400 mb-4 line-clamp-3">{summary}</p>
+                <h4 className="font-semibold text-zinc-900 dark:text-white mb-2">{title}</h4>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4 line-clamp-3">{summary}</p>
 
                 {/* Actions */}
                 <div className="flex items-center justify-between mt-2">

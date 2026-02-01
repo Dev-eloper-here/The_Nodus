@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 import { useAuth } from "@/lib/auth";
 import { Loader2, User as UserIcon } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const navItems = [
     { name: "Home", icon: Home, href: "/" },
@@ -74,9 +75,9 @@ export default function Sidebar() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     return (
-        <div className="flex flex-col h-full w-full bg-[#18181b] text-zinc-400 border-r border-white/5">
+        <div className="flex flex-col h-full w-full bg-white dark:bg-[#18181b] text-zinc-600 dark:text-zinc-400 border-r border-zinc-200 dark:border-white/5 transition-colors duration-300">
             <div className="p-6">
-                <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-nodus-green animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
                     Nodus <span className="text-[10px] font-mono bg-white/10 px-1.5 py-0.5 rounded text-zinc-400 border border-white/5">v1.1</span>
                 </h1>
@@ -93,8 +94,8 @@ export default function Sidebar() {
                             className={cn(
                                 "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative overflow-hidden",
                                 isActive
-                                    ? "bg-nodus-green/10 text-white shadow-sm ring-1 ring-nodus-green/20"
-                                    : "hover:bg-white/5 hover:text-white"
+                                    ? "bg-nodus-green/10 text-nodus-green dark:text-white shadow-sm ring-1 ring-nodus-green/20"
+                                    : "hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
                             )}
                         >
                             {isActive && (
@@ -104,7 +105,7 @@ export default function Sidebar() {
                                 size={20}
                                 className={cn(
                                     "transition-colors",
-                                    isActive ? "text-nodus-green" : "group-hover:text-nodus-green text-zinc-500"
+                                    isActive ? "text-nodus-green" : "group-hover:text-nodus-green text-zinc-400 dark:text-zinc-500"
                                 )}
                             />
                             <span className="text-sm font-medium">{item.name}</span>
@@ -113,12 +114,12 @@ export default function Sidebar() {
                 })}
             </nav>
 
-            <div className="p-4 border-t border-white/5 space-y-2">
+            <div className="p-4 border-t border-zinc-200 dark:border-white/5 space-y-2">
                 {/* Settings Popover Trigger - Now Global */}
                 <div className="relative">
                     <button
                         onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                        className="flex items-center gap-3 px-4 py-2 w-full rounded-lg hover:bg-white/5 text-zinc-400 hover:text-white transition-all duration-200 group"
+                        className="flex items-center gap-3 px-4 py-2 w-full rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all duration-200 group"
                     >
                         <Settings
                             size={16}
@@ -130,28 +131,33 @@ export default function Sidebar() {
 
                     {/* Settings Menu */}
                     {isSettingsOpen && (
-                        <div className="absolute bottom-full left-0 w-full mb-2 bg-[#18181b] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
+                        <div className="absolute bottom-full left-0 w-full mb-2 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
                             <Link
                                 href="/about"
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-b border-white/5"
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors border-b border-zinc-200 dark:border-white/5"
                             >
                                 <Info size={16} className="text-blue-400" />
                                 <span className="text-xs font-medium">About Nodus</span>
                             </Link>
                             <Link
                                 href="/userflow"
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-b border-white/5"
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors border-b border-zinc-200 dark:border-white/5"
                             >
                                 <Workflow size={16} className="text-purple-400" />
                                 <span className="text-xs font-medium">User Flow</span>
                             </Link>
                             <a
                                 href="mailto:devchaudhary.tech@gmail.com"
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors"
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-b border-white/5"
                             >
                                 <Mail size={16} className="text-nodus-green" />
                                 <span className="text-xs font-medium">Contact Developer</span>
                             </a>
+
+                            <div className="px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors">
+                                <span className="text-xs font-medium text-zinc-400">Appearance</span>
+                                <ThemeToggle />
+                            </div>
                         </div>
                     )}
                 </div>

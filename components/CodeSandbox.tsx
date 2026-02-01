@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import { Terminal, Play, ChevronDown, ChevronUp, Maximize2, Minimize2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "next-themes";
 
 const LANGUAGES = [
     { id: "typescript", name: "TypeScript / JS (Local)", version: "local", piston: null },
@@ -28,6 +29,8 @@ export default function CodeSandbox({
     const [isConsoleOpen, setIsConsoleOpen] = useState(true);
     const [language, setLanguage] = useState(LANGUAGES[0]); // Default TS
     const [isRunning, setIsRunning] = useState(false);
+    const { theme } = useTheme(); // Get current theme
+    const [monacoInstance, setMonacoInstance] = useState<any>(null);
 
     // Auto-detect Language
     useEffect(() => {
@@ -45,6 +48,13 @@ export default function CodeSandbox({
             setLanguage(LANGUAGES.find(l => l.id === "javascript") || LANGUAGES[0]);
         }
     }, [code]);
+
+    // Update Monaco Theme when 'theme' changes
+    useEffect(() => {
+        if (monacoInstance) {
+            monacoInstance.editor.setTheme(theme === 'dark' ? 'nodus-theme' : 'light');
+        }
+    }, [theme, monacoInstance]);
 
     const runCode = async () => {
         setIsConsoleOpen(true);
@@ -127,13 +137,13 @@ export default function CodeSandbox({
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#1e1e1e] relative group">
+        <div className="flex flex-col h-full bg-white dark:bg-[#1e1e1e] relative group transition-colors duration-300">
 
             {/* Header / Toolbar Section */}
-            <div className="flex flex-col border-b border-white/10 bg-[#1e1e1e] px-4 py-3 gap-3 flex-shrink-0">
+            <div className="flex flex-col border-b border-zinc-200 dark:border-white/10 bg-white dark:bg-[#1e1e1e] px-4 py-3 gap-3 flex-shrink-0 transition-colors duration-300">
                 {/* 1. Title Line & Language Selector */}
                 <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-200">
+                    <div className="text-sm font-semibold text-zinc-900 dark:text-gray-200">
                         Code Sandbox
                     </div>
                 </div>
@@ -142,7 +152,7 @@ export default function CodeSandbox({
                 <div className="flex items-center gap-3">
                     <button
                         onClick={onToggleFocus}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md text-xs font-medium border border-white/10 transition-all shadow-sm"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-md text-xs font-medium border border-zinc-200 dark:border-white/10 transition-all shadow-sm"
                     >
                         {isFocusMode ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
                         {isFocusMode ? "Exit Focus" : "Focus Mode"}
@@ -155,7 +165,7 @@ export default function CodeSandbox({
                             const selected = LANGUAGES.find(l => l.id === e.target.value);
                             if (selected) setLanguage(selected);
                         }}
-                        className="bg-zinc-800 text-zinc-300 text-xs rounded border border-white/10 px-2 py-1 outline-none focus:border-nodus-green/50"
+                        className="bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-300 text-xs rounded border border-zinc-200 dark:border-white/10 px-2 py-1 outline-none focus:border-nodus-green/50"
                     >
                         {LANGUAGES.map(lang => (
                             <option key={lang.id} value={lang.id}>{lang.name}</option>
@@ -180,7 +190,7 @@ export default function CodeSandbox({
                     language={language.id === "c" || language.id === "cpp" ? "c" : language.id} // Monaco language map
                     value={code}
                     onChange={(value) => onChange(value || "")}
-                    theme="vs-dark"
+                    // Removed 'theme' prop to avoid conflict, managed via useEffect
                     options={{
                         fontSize: 14,
                         fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
@@ -201,21 +211,23 @@ export default function CodeSandbox({
                                 'editor.background': '#1e1e1e',
                             }
                         });
-                        monaco.editor.setTheme('nodus-theme');
+                        setMonacoInstance(monaco);
+                        // Initially set the theme to avoid flash
+                        monaco.editor.setTheme(theme === 'dark' ? 'nodus-theme' : 'light');
                     }}
                 />
             </div>
 
             {/* Output Panel / Terminal */}
             <div className={cn(
-                "border-t border-white/10 bg-[#18181b] flex flex-col transition-all duration-300",
+                "border-t border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-[#18181b] flex flex-col transition-all duration-300",
                 isConsoleOpen ? "h-48" : "h-9"
             )}>
                 <div
-                    className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-white/5 transition-colors border-b border-white/5"
+                    className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors border-b border-zinc-200 dark:border-white/5"
                     onClick={() => setIsConsoleOpen(!isConsoleOpen)}
                 >
-                    <div className="flex items-center gap-2 text-xs font-medium text-zinc-400">
+                    <div className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
                         <Terminal size={14} />
                         Console Output
                     </div>
@@ -223,10 +235,10 @@ export default function CodeSandbox({
                 </div>
 
                 {isConsoleOpen && (
-                    <div className="flex-1 overflow-y-auto p-4 font-mono text-xs text-zinc-300 space-y-1">
-                        {output.length === 0 && <span className="text-zinc-600 italic">No output yet...</span>}
+                    <div className="flex-1 overflow-y-auto p-4 font-mono text-xs text-zinc-800 dark:text-zinc-300 space-y-1">
+                        {output.length === 0 && <span className="text-zinc-500 dark:text-zinc-600 italic">No output yet...</span>}
                         {output.map((line, i) => (
-                            <div key={i} className="border-b border-white/5 last:border-0 pb-1 mb-1 break-all whitespace-pre-wrap">{line}</div>
+                            <div key={i} className="border-b border-zinc-200 dark:border-white/5 last:border-0 pb-1 mb-1 break-all whitespace-pre-wrap">{line}</div>
                         ))}
                     </div>
                 )}

@@ -197,22 +197,22 @@ export default function NotebookPage() {
     }, [notes]);
 
     return (
-        <main className="flex h-screen w-full bg-[#121212] text-white overflow-hidden font-sans">
+        <main className="flex h-screen w-full bg-zinc-50 dark:bg-[#121212] text-zinc-900 dark:text-white overflow-hidden font-sans transition-colors duration-300">
             {/* Left Pane - Sidebar */}
-            <div className="w-64 flex-shrink-0 border-r border-white/5 bg-[#18181b]">
+            <div className="w-64 flex-shrink-0 border-r border-zinc-200 dark:border-white/5 bg-white dark:bg-[#18181b] transition-colors duration-300">
                 <Sidebar />
             </div>
 
             {/* Main Notebook Area */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Header */}
-                <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-[#18181b]">
+                <header className="h-16 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between px-6 bg-white dark:bg-[#18181b] transition-colors duration-300">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                             <StickyNote size={18} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-sm font-semibold text-white tracking-wide">Resources</h1>
+                            <h1 className="text-sm font-semibold text-zinc-900 dark:text-white tracking-wide">Resources</h1>
                             <p className="text-xs text-zinc-500">Untitled • Last edited just now</p>
                         </div>
                     </div>
@@ -228,8 +228,8 @@ export default function NotebookPage() {
                 <div className="flex-1 flex overflow-hidden">
 
                     {/* Column 1: Sources */}
-                    <div className="w-72 border-r border-white/5 flex flex-col bg-[#18181b]">
-                        <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/2">
+                    <div className="w-72 border-r border-zinc-200 dark:border-white/5 flex flex-col bg-white dark:bg-[#18181b] transition-colors duration-300">
+                        <div className="p-4 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between bg-zinc-50/50 dark:bg-white/2">
                             <h2 className="font-medium text-xs text-zinc-400 uppercase tracking-widest flex items-center gap-2">
                                 Sources
                             </h2>
@@ -270,12 +270,12 @@ export default function NotebookPage() {
                                 </div>
                             )}
                             {sources.map(source => (
-                                <div key={source.id} className="p-3 bg-white/5 rounded-xl border border-white/5 hover:border-blue-500/30 group relative overflow-hidden flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
+                                <div key={source.id} className="p-3 bg-zinc-50 dark:bg-white/5 rounded-xl border border-zinc-200 dark:border-white/5 hover:border-blue-500/30 group relative overflow-hidden flex items-center gap-3 transition-colors duration-200">
+                                    <div className="w-8 h-8 rounded bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
                                         <FileText size={16} />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium truncate text-zinc-200">{source.title}</p>
+                                        <p className="text-sm font-medium truncate text-zinc-700 dark:text-zinc-200">{source.title}</p>
                                         <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{source.type}</p>
                                     </div>
 
@@ -299,7 +299,7 @@ export default function NotebookPage() {
                     </div>
 
                     {/* Column 2: Chat (Main) */}
-                    <div className="flex-1 flex flex-col bg-[#121212] relative">
+                    <div className="flex-1 flex flex-col bg-zinc-50 dark:bg-[#121212] relative transition-colors duration-300">
                         {/* Background Gradient */}
                         <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/5 to-purple-500/5 pointer-events-none" />
 
@@ -307,11 +307,11 @@ export default function NotebookPage() {
                             {messages.length === 0 ? (
                                 /* Empty State */
                                 <div className="h-full flex flex-col items-center justify-center text-zinc-500 space-y-6">
-                                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-blue-500/10 to-purple-500/10 flex items-center justify-center border border-white/5">
-                                        <MessageSquare size={32} className="text-zinc-500" />
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-blue-500/10 to-purple-500/10 flex items-center justify-center border border-zinc-200 dark:border-white/5">
+                                        <MessageSquare size={32} className="text-zinc-400 dark:text-zinc-500" />
                                     </div>
                                     <div className="text-center max-w-md">
-                                        <h3 className="text-xl font-semibold text-white mb-2">Resources Chat</h3>
+                                        <h3 className="text-xl font-semibold text-zinc-900 dark:text-white mb-2">Resources Chat</h3>
                                         <p className="text-sm text-zinc-400">
                                             Upload documents or enable Web Search to start chatting. I can utilize both your files and Google Search.
                                         </p>
@@ -324,10 +324,10 @@ export default function NotebookPage() {
                                         msg.role === 'user' ? "justify-end" : "justify-start"
                                     )}>
                                         <div className={cn(
-                                            "max-w-[80%] rounded-2xl px-5 py-4 text-sm leading-relaxed",
+                                            "max-w-[80%] rounded-2xl px-5 py-4 text-sm leading-relaxed shadow-sm",
                                             msg.role === 'user'
                                                 ? "bg-blue-600 text-white rounded-br-none"
-                                                : "bg-white/5 text-zinc-200 rounded-bl-none border border-white/5"
+                                                : "bg-white dark:bg-white/5 text-zinc-800 dark:text-zinc-200 rounded-bl-none border border-zinc-200 dark:border-white/5"
                                         )}>
                                             <div className="prose prose-invert prose-sm max-w-none leading-relaxed">
                                                 <ReactMarkdown
@@ -352,10 +352,10 @@ export default function NotebookPage() {
                         </div>
 
                         {/* Input Area */}
-                        <div className="p-4 border-t border-white/5 bg-[#18181b] z-20">
+                        <div className="p-4 border-t border-zinc-200 dark:border-white/5 bg-white dark:bg-[#18181b] z-20 transition-colors duration-300">
                             <div className="max-w-4xl mx-auto relative group">
                                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition-opacity" />
-                                <div className="relative bg-[#27272a] rounded-2xl border border-white/10 flex items-end p-2 focus-within:border-blue-500/30 transition-colors">
+                                <div className="relative bg-zinc-50 dark:bg-[#27272a] rounded-2xl border border-zinc-200 dark:border-white/10 flex items-end p-2 focus-within:border-blue-500/30 transition-colors">
                                     <textarea
                                         value={input}
                                         onChange={(e) => setInput(e.target.value)}
@@ -365,7 +365,7 @@ export default function NotebookPage() {
                                                 handleSendMessage();
                                             }
                                         }}
-                                        className="w-full bg-transparent text-white p-3 min-h-[50px] max-h-[200px] resize-none focus:outline-none text-sm placeholder:text-zinc-600"
+                                        className="w-full bg-transparent text-zinc-900 dark:text-white p-3 min-h-[50px] max-h-[200px] resize-none focus:outline-none text-sm placeholder:text-zinc-500 dark:placeholder:text-zinc-600"
                                         placeholder="Ask a question..."
                                         disabled={isGenerating}
                                     />
@@ -387,18 +387,18 @@ export default function NotebookPage() {
                     </div>
 
                     {/* Column 3: Notes (Active) */}
-                    <div className="w-72 border-l border-white/5 flex flex-col bg-[#18181b]">
-                        <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/2">
-                            <h2 className="font-medium text-xs text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                    <div className="w-72 border-l border-zinc-200 dark:border-white/5 flex flex-col bg-white dark:bg-[#18181b] transition-colors duration-300">
+                        <div className="p-4 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between bg-zinc-50/50 dark:bg-white/2">
+                            <h2 className="font-medium text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
                                 Notes
                             </h2>
-                            <button className="text-zinc-500 hover:text-white transition-colors">
+                            <button className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
                                 <Plus size={16} />
                             </button>
                         </div>
                         <div className="flex-1 p-0">
                             <textarea
-                                className="w-full h-full bg-transparent text-zinc-300 text-sm p-4 resize-none focus:outline-none font-mono leading-relaxed placeholder:text-zinc-700"
+                                className="w-full h-full bg-transparent text-zinc-900 dark:text-zinc-300 text-sm p-4 resize-none focus:outline-none font-mono leading-relaxed placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
                                 placeholder="Start typing your notes here..."
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}

@@ -144,7 +144,7 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
         if (!inline && !isMultiLine) {
             if (codeContent.length < 60) {
                 return (
-                    <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono whitespace-nowrap inline-block align-middle" {...props}>
+                    <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/10 text-nodus-green text-sm font-mono whitespace-nowrap inline-block align-middle" {...props}>
                         {children}
                     </code>
                 );
@@ -152,21 +152,21 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
 
             // Longer single lines (e.g. commands) get the compact block
             return (
-                <code className="block my-2 px-3 py-2 rounded-lg bg-[#09090b] border border-white/10 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-all shadow-sm" {...props}>
+                <code className="block my-2 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-white/10 text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-all shadow-sm" {...props}>
                     {children}
                 </code>
             );
         }
 
         return !inline ? (
-            <div className="relative group my-4 rounded-lg overflow-hidden border border-white/10 bg-[#09090b]">
-                <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
-                    <span className="text-[10px] text-zinc-500 font-mono">{match ? match[1] : 'code'}</span>
+            <div className="relative group my-4 rounded-lg overflow-hidden border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-[#09090b]">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-100 dark:bg-white/10 border-b border-zinc-200 dark:border-white/10">
+                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">{match ? match[1] : 'code'}</span>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         {onCodeUpdate && (
                             <button
                                 onClick={handleRun}
-                                className="flex items-center gap-1.5 text-[10px] text-nodus-green hover:text-green-400 transition-colors px-2 py-1 rounded hover:bg-white/5"
+                                className="flex items-center gap-1.5 text-[10px] text-nodus-green hover:text-green-600 dark:hover:text-green-400 transition-colors px-2 py-1 rounded hover:bg-zinc-200 dark:hover:bg-white/5"
                                 title="Put this code in Editor"
                             >
                                 <Play size={10} />
@@ -175,7 +175,7 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                         )}
                         <button
                             onClick={handleCopy}
-                            className="text-zinc-500 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
+                            className="text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-white transition-colors p-1 rounded hover:bg-zinc-200 dark:hover:bg-white/5"
                             title="Copy Code"
                         >
                             {isCopied ? <Check size={12} /> : <Copy size={12} />}
@@ -183,25 +183,25 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                     </div>
                 </div>
                 <div className="p-3 overflow-x-auto">
-                    <code className={cn("text-xs font-mono text-zinc-300 leading-relaxed", className)} {...props}>
+                    <code className={cn("text-xs font-mono text-zinc-800 dark:text-zinc-300 leading-relaxed", className)} {...props}>
                         {children}
                     </code>
                 </div>
             </div>
         ) : (
-            <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono" {...props}>
+            <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-white/10 text-nodus-green text-sm font-mono" {...props}>
                 {children}
             </code>
         );
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#121212]">
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#121212] transition-colors duration-300">
             {/* Header */}
-            <div className="h-14 border-b border-white/10 flex items-center px-6 bg-[#18181b]">
+            <div className="h-14 border-b border-zinc-200 dark:border-white/10 flex items-center px-6 bg-white dark:bg-[#18181b] transition-colors duration-300">
                 <Bot className="text-nodus-green mr-3" size={24} />
                 <div>
-                    <h2 className="text-sm font-semibold text-white">Sage Agent</h2>
+                    <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Sage Agent</h2>
                     <p className="text-xs text-zinc-500">Always here to help</p>
                 </div>
             </div>
@@ -218,8 +218,8 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                             )}
                         </div>
                         <div className={`space-y-2 max-w-[85%]`}>
-                            <div className={`p-4 rounded-2xl border ${msg.role === 'ai'
-                                ? 'bg-[#1e1e1e] rounded-tl-none border-white/5'
+                            <div className={`p-4 rounded-2xl border transition-colors duration-300 ${msg.role === 'ai'
+                                ? 'bg-white dark:bg-[#1e1e1e] rounded-tl-none border-zinc-200 dark:border-white/5 shadow-sm dark:shadow-none'
                                 : 'bg-nodus-green/10 rounded-tr-none border-nodus-green/20'
                                 }`}>
                                 <div className="prose prose-invert prose-sm max-w-none leading-relaxed break-words">
@@ -259,7 +259,7 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
             </div>
 
             {/* Input Area */}
-            <div className="p-4 bg-[#18181b] border-t border-white/10">
+            <div className="p-4 bg-white dark:bg-[#18181b] border-t border-zinc-200 dark:border-white/10 transition-colors duration-300">
                 <div className="relative">
                     <input
                         type="text"
@@ -268,7 +268,7 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                         onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                         placeholder="Ask Sage a question..."
                         disabled={isLoading}
-                        className="w-full bg-[#09090b] border border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-white focus:outline-none focus:border-nodus-green/50 transition-colors placeholder:text-zinc-600 disabled:opacity-50"
+                        className="w-full bg-zinc-100 dark:bg-[#09090b] border border-transparent dark:border-white/10 rounded-xl py-3 pl-4 pr-12 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-nodus-green/50 focus:bg-white dark:focus:bg-[#09090b] transition-all placeholder:text-zinc-500 dark:placeholder:text-zinc-600 disabled:opacity-50"
                     />
                     <button
                         onClick={handleSendMessage}

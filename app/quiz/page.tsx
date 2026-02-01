@@ -78,23 +78,23 @@ export default function QuizPage() {
     };
 
     return (
-        <main className="flex h-screen w-full bg-[#121212] text-white overflow-hidden font-sans">
+        <main className="flex h-screen w-full bg-zinc-50 dark:bg-[#121212] text-zinc-900 dark:text-white overflow-hidden font-sans transition-colors duration-300">
             {/* Sidebar */}
-            <div className="w-64 flex-shrink-0 border-r border-white/5 bg-[#18181b]">
+            <div className="w-64 flex-shrink-0 border-r border-zinc-200 dark:border-white/5 bg-white dark:bg-[#18181b] transition-colors duration-300">
                 <Sidebar />
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-w-0 bg-[#121212]">
+            <div className="flex-1 flex flex-col min-w-0 bg-zinc-50 dark:bg-[#121212] transition-colors duration-300">
                 {/* Header */}
-                <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-[#18181b]">
+                <header className="h-20 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between px-8 bg-white dark:bg-[#18181b] transition-colors duration-300">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
                             <Brain size={20} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-white tracking-tight">AI Quiz Generator</h1>
-                            <p className="text-xs text-zinc-400 font-medium">Test your knowledge on any topic</p>
+                            <h1 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">AI Quiz Generator</h1>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Test your knowledge on any topic</p>
                         </div>
                     </div>
                 </header>
@@ -113,14 +113,14 @@ export default function QuizPage() {
 
                             <div className="relative group">
                                 <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur opacity-25 group-focus-within:opacity-75 transition duration-1000 group-hover:opacity-75" />
-                                <div className="relative flex gap-2 p-2 bg-[#1e1e1e] rounded-xl border border-white/10">
+                                <div className="relative flex gap-2 p-2 bg-white dark:bg-[#1e1e1e] rounded-xl border border-zinc-200 dark:border-white/10 transition-colors duration-300">
                                     <input
                                         type="text"
                                         value={topic}
                                         onChange={(e) => setTopic(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleGenerateQuiz()}
                                         placeholder="e.g. React Hooks, Python Data Science, Quantum Physics"
-                                        className="flex-1 bg-transparent border-none text-white placeholder:text-zinc-600 focus:outline-none px-4"
+                                        className="flex-1 bg-transparent border-none text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none px-4"
                                         disabled={isLoading}
                                     />
                                     <button
@@ -141,7 +141,7 @@ export default function QuizPage() {
                                         <button
                                             key={t}
                                             onClick={() => setTopic(t)}
-                                            className="px-4 py-2 rounded-full bg-white/5 border border-white/5 hover:bg-white/10 hover:border-purple-500/30 text-sm text-zinc-300 transition-all"
+                                            className="px-4 py-2 rounded-full bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 hover:border-purple-500/30 text-sm text-zinc-600 dark:text-zinc-300 transition-all"
                                         >
                                             {t}
                                         </button>
@@ -161,8 +161,8 @@ export default function QuizPage() {
                             </div>
 
                             {/* Question Card */}
-                            <div className="bg-[#1e1e1e] border border-white/10 rounded-2xl p-8 shadow-2xl">
-                                <h3 className="text-xl font-medium text-white mb-8 leading-relaxed">
+                            <div className="bg-white dark:bg-[#1e1e1e] border border-zinc-200 dark:border-white/10 rounded-2xl p-8 shadow-2xl transition-colors duration-300">
+                                <h3 className="text-xl font-medium text-zinc-900 dark:text-white mb-8 leading-relaxed">
                                     {questions[currentQuestionIndex].question}
                                 </h3>
 
@@ -172,7 +172,7 @@ export default function QuizPage() {
                                         const isCorrect = idx === questions[currentQuestionIndex].answer;
                                         const showResult = selectedOption !== null;
 
-                                        let styleClass = "border-white/10 hover:bg-white/5 text-zinc-200"; // Default
+                                        let styleClass = "border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-200"; // Default
 
                                         if (showResult) {
                                             if (isCorrect) styleClass = "border-green-500/50 bg-green-500/10 text-green-400";
