@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { db } from "@/lib/firebase";
 import { collection, query, where, orderBy, getDocs, addDoc } from "firebase/firestore";
+import RecommendationCarousel from "@/components/wallet/RecommendationCarousel";
 
 // Types
 interface WalletItem {
@@ -155,105 +156,63 @@ export default function WalletPage() {
                     </div>
                 </header>
 
-                {/* Sub-Header / Tabs */}
-                <div className="px-8 py-6">
-                    <div className="flex p-1 bg-zinc-100 dark:bg-[#1e1e1e] rounded-xl border border-zinc-200 dark:border-white/5 w-fit transition-colors duration-300">
-                        <button
-                            onClick={() => setActiveTab('concepts')}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                                activeTab === 'concepts'
-                                    ? "bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-white/10"
-                                    : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-                            )}
-                        >
-                            <Lightbulb size={16} className={activeTab === 'concepts' ? "text-yellow-500" : ""} />
-                            Concept Wallet
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('errors')}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                                activeTab === 'errors'
-                                    ? "bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-white/10"
-                                    : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-                            )}
-                        >
-                            <ShieldAlert size={16} className={activeTab === 'errors' ? "text-red-500" : ""} />
-                            Error Wallet
-                        </button>
-                    </div>
-                </div>
+                {/* Content Area (Scrollable) */}
+                <div className="flex-1 overflow-y-auto pb-8">
 
-                {/* Add Item Modal / Inline Form */}
-                {isAdding && (
-                    <div className="mx-8 mb-8 p-6 bg-[#1e1e1e] border border-white/10 rounded-2xl animate-in slide-in-from-top-4">
-                        <div className="flex justify-between mb-4">
-                            <h3 className="font-semibold">{editingItem ? "Edit Item" : (activeTab === 'concepts' ? "New Concept" : "Log Error")}</h3>
-                            <button onClick={closeForm}><X size={18} /></button>
-                        </div>
-                        <div className="space-y-4">
-                            <input
-                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm"
-                                placeholder="Title (e.g. React Hooks)"
-                                value={newTitle}
-                                onChange={e => setNewTitle(e.target.value)}
-                            />
-                            <textarea
-                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm h-24"
-                                placeholder={activeTab === 'concepts' ? "Summary of what you learned..." : "Explain the error and fix..."}
-                                value={newSummary}
-                                onChange={e => setNewSummary(e.target.value)}
-                            />
-                            <input
-                                className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm"
-                                placeholder="Tags (comma separated)"
-                                value={newTags}
-                                onChange={e => setNewTags(e.target.value)}
-                            />
-                            {activeTab === 'errors' && (
-                                <select
-                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-3 text-sm"
-                                    value={newSeverity}
-                                    onChange={e => setNewSeverity(e.target.value)}
-                                >
-                                    <option value="low">Low Severity</option>
-                                    <option value="medium">Medium Severity</option>
-                                    <option value="high">High Severity</option>
-                                </select>
-                            )}
-                            <div className="flex justify-end gap-2">
-                                <button onClick={closeForm} className="px-4 py-2 text-sm text-zinc-400">Cancel</button>
-                                <button onClick={handleSaveItem} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm">
-                                    {editingItem ? "Update Item" : "Save Item"}
-                                </button>
-                            </div>
+                    {/* Recommendations Section (Scrolls away) */}
+                    <RecommendationCarousel />
+
+                    {/* Sub-Header / Tabs (Sticky) */}
+                    <div className="px-8 py-6 sticky top-0 z-10 bg-zinc-50 dark:bg-[#121212] transition-colors duration-300">
+                        <div className="flex p-1 bg-zinc-100 dark:bg-[#1e1e1e] rounded-xl border border-zinc-200 dark:border-white/5 w-fit">
+                            <button
+                                onClick={() => setActiveTab('concepts')}
+                                className={cn(
+                                    "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                                    activeTab === 'concepts'
+                                        ? "bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-white/10"
+                                        : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                )}
+                            >
+                                <Lightbulb size={16} className={activeTab === 'concepts' ? "text-yellow-500" : ""} />
+                                Concept Wallet
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('errors')}
+                                className={cn(
+                                    "flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                                    activeTab === 'errors'
+                                        ? "bg-white dark:bg-[#27272a] text-zinc-900 dark:text-white shadow-sm ring-1 ring-zinc-200 dark:ring-white/10"
+                                        : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                )}
+                            >
+                                <ShieldAlert size={16} className={activeTab === 'errors' ? "text-red-500" : ""} />
+                                Error Wallet
+                            </button>
                         </div>
                     </div>
-                )}
 
-
-                {/* Content Area */}
-                <div className="flex-1 overflow-y-auto px-8 pb-8">
-                    {!user ? (
-                        <div className="text-center text-zinc-500 mt-20">Please sign in to view your wallet.</div>
-                    ) : isLoading ? (
-                        <div className="text-center text-zinc-500 mt-20">Loading wallet...</div>
-                    ) : activeTab === 'concepts' ? (
-                        <ConceptWalletSection
-                            data={items.filter(i => i.type === 'concept')}
-                            onAdd={() => { setEditingItem(null); setIsAdding(true); }}
-                            onEdit={(item) => { setEditingItem(item); }}
-                            onDelete={(id, e) => handleDelete(id, e)}
-                        />
-                    ) : (
-                        <ErrorWalletSection
-                            data={items.filter(i => i.type === 'error')}
-                            onAdd={() => { setEditingItem(null); setIsAdding(true); }}
-                            onEdit={(item) => { setEditingItem(item); }}
-                            onDelete={(id, e) => handleDelete(id, e)}
-                        />
-                    )}
+                    <div className="px-8">
+                        {!user ? (
+                            <div className="text-center text-zinc-500 mt-20">Please sign in to view your wallet.</div>
+                        ) : isLoading ? (
+                            <div className="text-center text-zinc-500 mt-20">Loading wallet...</div>
+                        ) : activeTab === 'concepts' ? (
+                            <ConceptWalletSection
+                                data={items.filter(i => i.type === 'concept')}
+                                onAdd={() => { setEditingItem(null); setIsAdding(true); }}
+                                onEdit={(item) => { setEditingItem(item); }}
+                                onDelete={(id, e) => handleDelete(id, e)}
+                            />
+                        ) : (
+                            <ErrorWalletSection
+                                data={items.filter(i => i.type === 'error')}
+                                onAdd={() => { setEditingItem(null); setIsAdding(true); }}
+                                onEdit={(item) => { setEditingItem(item); }}
+                                onDelete={(id, e) => handleDelete(id, e)}
+                            />
+                        )}
+                    </div>
                 </div>
             </div>
         </main>

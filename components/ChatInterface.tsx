@@ -93,7 +93,8 @@ export default function ChatInterface({ currentCode, onCodeUpdate }: ChatInterfa
                 body: JSON.stringify({
                     message: userMessageContent,
                     history: historyPayload,
-                    context: currentCode
+                    context: currentCode,
+                    userId: user?.uid // Pass User ID for Error Wallet Context
                 }),
             });
 

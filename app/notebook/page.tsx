@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Copy, Plus, MessageSquare, StickyNote, FileText, Send, Trash2, Loader2, Check } from "lucide-react";
+import { Copy, Plus, MessageSquare, StickyNote, FileText, Send, Trash2, Loader2, Check, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -31,7 +31,7 @@ export default function NotebookPage() {
     }, []);
 
     // Global Chat Store
-    const { messages, addMessage, setMessages, currentThreadId, setCurrentThreadId } = useChatStore();
+    const { messages, addMessage, setMessages, currentThreadId, setCurrentThreadId, setEditorCode } = useChatStore();
 
     // Local state for notebook specific UI (sources, notes, etc)
     const [isLoadingSources, setIsLoadingSources] = useState(true);
@@ -139,7 +139,8 @@ export default function NotebookPage() {
                     message: userMsgContent,
                     sources: sources, // Pass sources for RAG (Notebook specific feature)
                     history: messages.concat(userMsg), // Pass full history from store
-                    enableWebSearch // Pass the flag
+                    enableWebSearch, // Pass the flag
+                    userId: user?.uid // Pass User ID for Error Wallet Context
                 })
             });
 
@@ -202,6 +203,74 @@ export default function NotebookPage() {
     useEffect(() => {
         localStorage.setItem("nodus_notebook_notes", notes);
     }, [notes]);
+
+    // Custom Code Block Renderer (Defined inside component to access setEditorCode)
+    const CodeBlock = ({ inline, className, children, ...props }: any) => {
+        const match = /language-(\w+)/.exec(className || '');
+        const codeContent = String(children).replace(/\n$/, '');
+        const [isCopied, setIsCopied] = useState(false);
+        const isMultiLine = codeContent.split('\n').length > 1;
+
+        const handleCopy = () => {
+            navigator.clipboard.writeText(codeContent);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        };
+
+        if (!inline && !isMultiLine) {
+            if (codeContent.length < 60) {
+                return (
+                    <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono whitespace-nowrap inline-block align-middle" {...props}>
+                        {children}
+                    </code>
+                );
+            }
+            return (
+                <code className="block my-2 px-3 py-2 rounded-lg bg-[#09090b] border border-white/10 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-all shadow-sm" {...props}>
+                    {children}
+                </code>
+            );
+        }
+
+        const handleLogicSync = () => {
+            setEditorCode(codeContent);
+            alert("Code synced to Editor! Go to Home to run it. 🚀");
+        };
+
+        return !inline ? (
+            <div className="relative group my-2 rounded-lg overflow-hidden border border-white/10 bg-[#09090b]">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
+                    <span className="text-[10px] text-zinc-500 font-mono">{match ? match[1] : 'code'}</span>
+                    <div className="flex items-center gap-2 opacity-100 transition-opacity">
+                        <button
+                            onClick={handleLogicSync}
+                            className="flex items-center gap-1.5 text-[10px] text-nodus-green hover:text-green-400 transition-colors px-2 py-1 rounded hover:bg-white/5"
+                            title="Sync to Editor"
+                        >
+                            <Play size={10} />
+                            Sync
+                        </button>
+                        <button
+                            onClick={handleCopy}
+                            className="text-zinc-500 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
+                            title="Copy Code"
+                        >
+                            {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                    </div>
+                </div>
+                <div className="p-3 overflow-x-auto">
+                    <code className={cn("text-xs font-mono text-zinc-300 leading-relaxed", className)} {...props}>
+                        {children}
+                    </code>
+                </div>
+            </div>
+        ) : (
+            <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono" {...props}>
+                {children}
+            </code>
+        );
+    };
 
     return (
         <main className="flex h-screen w-full bg-zinc-50 dark:bg-[#121212] text-zinc-900 dark:text-white overflow-hidden font-sans transition-colors duration-300">
@@ -421,61 +490,4 @@ export default function NotebookPage() {
     );
 }
 
-// Custom Code Block Renderer (Isolated and Clean logic)
-const CodeBlock = ({ inline, className, children, ...props }: any) => {
-    const match = /language-(\w+)/.exec(className || '');
-    const codeContent = String(children).replace(/\n$/, '');
-    const [isCopied, setIsCopied] = useState(false);
-    const isMultiLine = codeContent.split('\n').length > 1;
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(codeContent);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-    };
-
-    // Compact Mode for single lines: Minimal box, no header.
-    if (!inline && !isMultiLine) {
-        // heuristic: if it's short (< 60 chars), render it as an inline badge to prevent breaking text flow
-        if (codeContent.length < 60) {
-            return (
-                <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono whitespace-nowrap inline-block align-middle" {...props}>
-                    {children}
-                </code>
-            );
-        }
-
-        return (
-            <code className="block my-2 px-3 py-2 rounded-lg bg-[#09090b] border border-white/10 text-xs font-mono text-zinc-300 whitespace-pre-wrap break-all shadow-sm" {...props}>
-                {children}
-            </code>
-        );
-    }
-
-    return !inline ? (
-        <div className="relative group my-2 rounded-lg overflow-hidden border border-white/10 bg-[#09090b]">
-            <div className="flex items-center justify-between px-3 py-1.5 bg-white/5 border-b border-white/5">
-                <span className="text-[10px] text-zinc-500 font-mono">{match ? match[1] : 'code'}</span>
-                <div className="flex items-center gap-2 opacity-100 transition-opacity">
-                    {/* No Run button for NotebookPage */}
-                    <button
-                        onClick={handleCopy}
-                        className="text-zinc-500 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
-                        title="Copy Code"
-                    >
-                        {isCopied ? <Check size={12} /> : <Copy size={12} />}
-                    </button>
-                </div>
-            </div>
-            <div className="p-3 overflow-x-auto">
-                <code className={cn("text-xs font-mono text-zinc-300 leading-relaxed", className)} {...props}>
-                    {children}
-                </code>
-            </div>
-        </div>
-    ) : (
-        <code className="px-1.5 py-0.5 rounded bg-white/10 text-nodus-green text-sm font-mono" {...props}>
-            {children}
-        </code>
-    );
-};

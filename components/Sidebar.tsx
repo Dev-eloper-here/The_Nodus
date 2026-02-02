@@ -1,4 +1,4 @@
-import { Home, NotebookPen, ShieldAlert, Settings, LogOut, Brain, ChevronRight, ChevronDown, Info, Workflow, Mail, MessageSquare, Plus, Trash2, ChevronUp, Pencil, Check, X } from "lucide-react";
+import { Home, NotebookPen, ShieldAlert, Settings, LogOut, Brain, ChevronRight, ChevronDown, Info, Workflow, Mail, MessageSquare, Plus, Trash2, ChevronUp, Pencil, Check, X, LayoutDashboard } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,6 +15,7 @@ const navItems = [
     { name: "Resource Chat", icon: NotebookPen, href: "/notebook" },
     { name: "Quiz", icon: Brain, href: "/quiz" },
     { name: "Wallet", icon: ShieldAlert, href: "/wallet" },
+    { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
 ];
 
 function UserProfile() {

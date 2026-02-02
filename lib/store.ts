@@ -13,6 +13,10 @@ interface ChatState {
     clearMessages: () => void;
     currentThreadId: string | null;
     setCurrentThreadId: (id: string | null) => void;
+
+    // Editor Integration (Logic Sync)
+    editorCode: string;
+    setEditorCode: (code: string) => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -32,6 +36,9 @@ export const useChatStore = create<ChatState>()(
 
             currentThreadId: null,
             setCurrentThreadId: (id) => set({ currentThreadId: id }),
+
+            editorCode: "// Write your code here...",
+            setEditorCode: (code) => set({ editorCode: code }),
         }),
         {
             name: 'nodus-chat-storage', // unique name for localStorage

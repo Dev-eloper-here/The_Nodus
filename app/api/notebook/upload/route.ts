@@ -143,6 +143,13 @@ export async function POST(request: NextRequest) {
         }
 
         console.log("Upload API: Success");
+
+        // Log Activity for Streak
+        if (userId) {
+            const { logActivity } = await import("@/lib/gamification");
+            await logActivity(userId);
+        }
+
         return NextResponse.json({ success: true, source: sourceData });
 
     } catch (error: any) {

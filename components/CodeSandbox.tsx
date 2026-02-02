@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
-import { Terminal, Play, ChevronDown, ChevronUp, Maximize2, Minimize2, Loader2 } from "lucide-react";
+import { Terminal, Play, ChevronDown, ChevronUp, Maximize2, Minimize2, Loader2, Bug, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
+import { useAuth } from "@/lib/auth";
 
 const LANGUAGES = [
     { id: "typescript", name: "TypeScript / JS (Local)", version: "local", piston: null },
@@ -31,6 +32,15 @@ export default function CodeSandbox({
     const [isRunning, setIsRunning] = useState(false);
     const { theme } = useTheme(); // Get current theme
     const [monacoInstance, setMonacoInstance] = useState<any>(null);
+
+    // Auto-Log State
+    const { user } = useAuth();
+    const [detectedError, setDetectedError] = useState<string | null>(null);
+    const [isSavingError, setIsSavingError] = useState(false);
+    const [savedErrorId, setSavedErrorId] = useState<string | null>(null);
+
+    // Input State
+    const [stdin, setStdin] = useState("");
 
     // Auto-detect Language
     useEffect(() => {
@@ -59,6 +69,8 @@ export default function CodeSandbox({
     const runCode = async () => {
         setIsConsoleOpen(true);
         setIsRunning(true);
+        setDetectedError(null); // Reset previous errors
+        setSavedErrorId(null);
         setOutput([`> Running code (${language.name})...`]);
 
         try {
@@ -74,6 +86,7 @@ export default function CodeSandbox({
                     error: (...args: any[]) => {
                         const line = args.map(a => String(a)).join(' ');
                         setOutput(prev => [...prev, `Error: ${line}`]);
+                        setDetectedError(line); // Auto-detect local error
                     },
                     warn: (...args: any[]) => {
                         const line = args.map(a => String(a)).join(' ');
@@ -104,7 +117,8 @@ export default function CodeSandbox({
                     body: JSON.stringify({
                         language: language.piston,
                         version: language.version,
-                        files: [{ content: code }]
+                        files: [{ content: code }],
+                        stdin: stdin // Pass user input
                     })
                 });
 
@@ -118,6 +132,7 @@ export default function CodeSandbox({
                     // Stderr
                     if (data.run.stderr) {
                         setOutput(prev => [...prev, `Error: ${data.run.stderr}`]);
+                        setDetectedError(data.run.stderr); // Auto-detect remote error
                     }
                     if (data.run.output && !data.run.stdout && !data.run.stderr) {
                         setOutput(prev => [...prev, data.run.output]);
@@ -131,8 +146,63 @@ export default function CodeSandbox({
 
         } catch (error: any) {
             setOutput(prev => [...prev, `> Runtime Error: ${error.message}`]);
+            setDetectedError(error.message); // Auto-detect runtime error
         } finally {
             setIsRunning(false);
+        }
+    };
+
+    const handleSaveError = async () => {
+        if (!detectedError || !user) return;
+        setIsSavingError(true);
+        try {
+            // 1. Analyze Error with AI
+            let title = "Runtime Error";
+            let summary = detectedError;
+
+            try {
+                const analysisRes = await fetch("/api/analyze-error", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        code: code,
+                        errorLog: detectedError,
+                        language: language.id
+                    })
+                });
+
+                if (analysisRes.ok) {
+                    const analysisData = await analysisRes.json();
+                    if (analysisData.title) title = analysisData.title;
+                    if (analysisData.summary) summary = analysisData.summary;
+                }
+            } catch (aiError) {
+                console.warn("AI Analysis failed, falling back to raw error", aiError);
+            }
+
+            // 2. Save to Wallet
+            await fetch("/api/wallet", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: user.uid,
+                    type: "error",
+                    title: title,
+                    summary: summary, // Clean explanation
+                    rawError: detectedError, // Keep raw log just in case (optional, schema might need update if we want to store it separate)
+                    tags: ["auto-log", language.id],
+                    severity: "high"
+                })
+            });
+            setSavedErrorId("saved");
+            setTimeout(() => {
+                setDetectedError(null); // Clear after saving
+                setSavedErrorId(null);
+            }, 2000);
+        } catch (e) {
+            console.error("Failed to save error", e);
+        } finally {
+            setIsSavingError(false);
         }
     };
 
@@ -227,19 +297,71 @@ export default function CodeSandbox({
                     className="flex items-center justify-between px-4 py-2 cursor-pointer hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors border-b border-zinc-200 dark:border-white/5"
                     onClick={() => setIsConsoleOpen(!isConsoleOpen)}
                 >
-                    <div className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                        <Terminal size={14} />
-                        Console Output
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                            <Terminal size={14} />
+                            Console
+                        </div>
+
+                        {/* Auto-Log Error Button */}
+                        {detectedError && !savedErrorId && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSaveError();
+                                }}
+                                disabled={isSavingError}
+                                className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/30 rounded text-[10px] font-medium transition-colors animate-in fade-in"
+                            >
+                                <Bug size={10} />
+                                {isSavingError ? "Analyzing..." : "Bug Detected! Save?"}
+                            </button>
+                        )}
+                        {savedErrorId && (
+                            <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 text-green-500 border border-green-500/30 rounded text-[10px] font-medium animate-in fade-in">
+                                <Save size={10} />
+                                Saved to Wallet
+                            </span>
+                        )}
                     </div>
                     {isConsoleOpen ? <ChevronDown size={14} className="text-zinc-500" /> : <ChevronUp size={14} className="text-zinc-500" />}
                 </div>
 
                 {isConsoleOpen && (
-                    <div className="flex-1 overflow-y-auto p-4 font-mono text-xs text-zinc-800 dark:text-zinc-300 space-y-1">
-                        {output.length === 0 && <span className="text-zinc-500 dark:text-zinc-600 italic">No output yet...</span>}
-                        {output.map((line, i) => (
-                            <div key={i} className="border-b border-zinc-200 dark:border-white/5 last:border-0 pb-1 mb-1 break-all whitespace-pre-wrap">{line}</div>
-                        ))}
+                    <div className="flex-1 flex flex-col min-h-0 bg-transparent">
+
+                        {/* Output Log */}
+                        <div className="flex-1 overflow-y-auto p-4 font-mono text-xs text-zinc-800 dark:text-zinc-300 space-y-1 scrollbar-thin scrollbar-thumb-zinc-700">
+                            {output.length === 0 && <span className="text-zinc-500 dark:text-zinc-600 italic">Output will appear here...</span>}
+                            {output.map((line, i) => (
+                                <div key={i} className="border-b border-zinc-200 dark:border-white/5 last:border-0 pb-1 mb-1 break-all whitespace-pre-wrap">{line}</div>
+                            ))}
+                        </div>
+
+                        {/* Stdin Input Area */}
+                        <div className="flex-shrink-0 h-16 border-t border-zinc-200 dark:border-white/10 bg-zinc-100/50 dark:bg-black/20 p-2 flex gap-2 items-start">
+                            <button
+                                onClick={runCode}
+                                disabled={isRunning}
+                                className="h-full px-3 bg-zinc-200 dark:bg-white/10 hover:bg-nodus-green hover:text-white dark:hover:bg-nodus-green text-zinc-500 dark:text-zinc-400 rounded transition-colors flex items-center justify-center mr-1"
+                                title="Run with this input"
+                            >
+                                {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
+                            </button>
+                            <div className="text-zinc-400 text-xs font-mono pt-2">{">"}</div>
+                            <textarea
+                                className="flex-1 bg-transparent border-none outline-none text-xs font-mono text-zinc-800 dark:text-zinc-200 resize-none placeholder:text-zinc-400 h-full py-1"
+                                placeholder="Input for program (e.g. 50)..."
+                                value={stdin}
+                                onChange={(e) => setStdin(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        runCode();
+                                    }
+                                }}
+                            />
+                        </div>
                     </div>
                 )}
             </div>

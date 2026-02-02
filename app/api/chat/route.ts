@@ -9,27 +9,59 @@ import { NoteSource, NoteChunk } from "@/lib/types";
 import { Content } from "@google/generative-ai";
 
 // Helper: Fetch Unresolved Errors (Proactive Mentoring)
-async function fetchActiveErrors() {
-    const q = query(collection(db, "errors"), where("resolved", "==", false), limit(5));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((d: any) => d.data().title).join(", ");
+// Helper: Fetch Unresolved Errors (Proactive Mentoring)
+async function fetchActiveErrors(userId?: string) {
+    if (!userId) return "";
+
+    try {
+        // Query 'wallet' for items of type 'error' for this user
+        // We limit to 5 most recent to not bloat context
+        const q = query(
+            collection(db, "wallet"),
+            where("userId", "==", userId),
+            where("type", "==", "error"),
+            // where("resolved", "==", false), // TODO: Add 'resolved' field to schema later if needed
+            limit(5)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map((d: any) => d.data().title).join(", ");
+    } catch (e) {
+        console.error("Failed to fetch active errors:", e);
+        return "";
+    }
 }
 
 // Helper: RAG Retrieval
-async function retrieveRelevantContext(message: string, sourceIds: string[]) {
+// Helper: RAG Retrieval
+async function retrieveRelevantContext(message: string, sourceIds: string[], sources: NoteSource[]) {
     // 1. Embed string
     const queryVector = await embedText(message);
 
     // 2. Fetch all chunks from active sources
-    // Note: In real app, use Vector Search. For MVP, fetch all and cosine locally.
+    // Hybrid Strategy: Prioritize chunks passed in request (Client Memory), fallback to DB
     let allChunks: NoteChunk[] = [];
 
     for (const sourceId of sourceIds) {
-        const chunksRef = collection(db, "sources", sourceId, "chunks");
-        const snapshot = await getDocs(chunksRef);
-        snapshot.forEach((doc: any) => {
-            allChunks.push(doc.data() as NoteChunk);
-        });
+        // A. Check Memory (Sources passed in request)
+        const sourceInMemory = sources.find(s => s.id === sourceId);
+        if (sourceInMemory && sourceInMemory.chunks && sourceInMemory.chunks.length > 0) {
+            // console.log(`Using in-memory chunks for ${sourceId}`);
+            allChunks.push(...sourceInMemory.chunks);
+            continue; // Skip DB fetch if we have it in memory
+        }
+
+        // B. Fallback to DB (If persistence layer is active)
+        try {
+            const chunksRef = collection(db, "sources", sourceId, "chunks");
+            const snapshot = await getDocs(chunksRef);
+            if (!snapshot.empty) {
+                snapshot.forEach((doc: any) => {
+                    allChunks.push(doc.data() as NoteChunk);
+                });
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch DB chunks for ${sourceId}`, e);
+        }
     }
 
     if (allChunks.length === 0) return "";
@@ -47,7 +79,13 @@ async function retrieveRelevantContext(message: string, sourceIds: string[]) {
 
 export async function POST(request: NextRequest) {
     try {
-        const { message, history, sources, context, enableWebSearch } = await request.json();
+        const { message, history, sources, context, enableWebSearch, userId } = await request.json();
+
+        // Log Activity for Streak
+        if (userId) {
+            const { logActivity } = await import("@/lib/gamification");
+            await logActivity(userId);
+        }
 
         // --- GEMINI LOGIC (API Key) ---
         const model = chatGenAI.getGenerativeModel({ model: GEMINI_MODEL });
@@ -69,7 +107,7 @@ export async function POST(request: NextRequest) {
         }
 
         // TOOL CONFIGURATION (Web Search)
-        const tools = [];
+        const tools: any[] = [];
         if (enableWebSearch) {
             tools.push({ googleSearch: {} });
         }
@@ -112,14 +150,14 @@ export async function POST(request: NextRequest) {
 
         if (sourceIds.length > 0) {
             console.log("Retrieving RAG context for sources:", sourceIds);
-            const ragText = await retrieveRelevantContext(message, sourceIds);
+            const ragText = await retrieveRelevantContext(message, sourceIds, sources);
             if (ragText) {
                 finalPrompt = `CONTEXT (Retrieved from User's Notes):\n${ragText}\n\n${finalPrompt}`;
             }
         }
 
         // 3. Add Error Wallet Context (Proactive Mentoring)
-        const activeErrors = await fetchActiveErrors();
+        const activeErrors = await fetchActiveErrors(userId);
         if (activeErrors) {
             finalPrompt = `SYSTEM NOTE: The user has a history of these errors: [${activeErrors}]. If their code shows signs of this, warn them gently.\n\n${finalPrompt}`;
         }

@@ -45,6 +45,12 @@ export async function POST(request: NextRequest) {
 
         const docRef = await addDoc(collection(db, "wallet"), newItem);
 
+        // Log Activity for Streak
+        if (body.userId) {
+            const { logActivity } = await import("@/lib/gamification");
+            await logActivity(body.userId);
+        }
+
         return NextResponse.json({ success: true, item: { id: docRef.id, ...newItem } });
 
     } catch (error: any) {

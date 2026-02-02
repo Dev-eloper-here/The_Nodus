@@ -17,9 +17,18 @@ export async function GET(request: NextRequest) {
 
         const snapshot = await getDocs(q);
 
-        const items = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+        const items = await Promise.all(snapshot.docs.map(async (doc) => {
+            const data = doc.data();
+            // Fetch chunks for this source (Critical for RAG persistence)
+            const chunksRef = collection(db, "sources", doc.id, "chunks");
+            const chunksSnap = await getDocs(chunksRef);
+            const chunks = chunksSnap.docs.map(c => c.data());
+
+            return {
+                id: doc.id,
+                ...data,
+                chunks: chunks.length > 0 ? chunks : undefined
+            };
         }));
 
         return NextResponse.json({ items });
