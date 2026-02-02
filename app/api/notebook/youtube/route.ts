@@ -137,38 +137,33 @@ export async function POST(req: NextRequest) {
             type: 'youtube',
             createdAt: Date.now(),
             chunkCount: chunks.length,
-            // 5. Save to Firestore (For Persistence)
-            const { db } = await import("@/lib/firebase");
-            const { doc, setDoc, collection, writeBatch } = await import("firebase/firestore");
-
-            // Save Source Metadata
-            const sourceRef = doc(collection(db, "sources"), source.id);
-            await setDoc(sourceRef, { ...source, userId });
-
-            // Save Chunks (Batch Write)
-            const batch = writeBatch(db);
-            const chunksRef = collection(db, "sources", source.id, "chunks");
-
-            chunks.forEach((text, i) => {
-                const chunkRef = doc(chunksRef, `${source.id}-chunk-${i}`);
-                batch.set(chunkRef, {
-                    id: `${source.id}-chunk-${i}`,
-                    sourceId: source.id,
-                    text,
-                    embedding: embeddings[i],
-                    index: i
-                });
-            });
-
-            await batch.commit();
-            console.log("Saved YouTube source to DB");
-
-            // Adding a custom 'data' field to NoteSource for local RAG would be ideal
-            // But NoteSource definition in types.ts doesn't have 'chunks'.
-            // Let's check how PDF upload handles it.
-            // ... NotebookUploader calls /api/notebook/upload ...
-            // Let's verify what that returns.
         };
+
+        // 5. Save to Firestore (For Persistence)
+        const { db } = await import("@/lib/firebase");
+        const { doc, setDoc, collection, writeBatch } = await import("firebase/firestore");
+
+        // Save Source Metadata
+        const sourceRef = doc(collection(db, "sources"), source.id);
+        await setDoc(sourceRef, { ...source, userId });
+
+        // Save Chunks (Batch Write)
+        const batch = writeBatch(db);
+        const chunksRef = collection(db, "sources", source.id, "chunks");
+
+        chunks.forEach((text, i) => {
+            const chunkRef = doc(chunksRef, `${source.id}-chunk-${i}`);
+            batch.set(chunkRef, {
+                id: `${source.id}-chunk-${i}`,
+                sourceId: source.id,
+                text,
+                embedding: embeddings[i],
+                index: i
+            });
+        });
+
+        await batch.commit();
+        console.log("Saved YouTube source to DB");
 
         // We need to return the chunks so the Chat API can use them.
         // Current 'NoteSource' type only has metadata.
