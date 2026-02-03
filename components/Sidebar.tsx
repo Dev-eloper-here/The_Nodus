@@ -79,11 +79,28 @@ export default function Sidebar() {
     const [threads, setThreads] = useState<Thread[]>([]);
     const [loadingThreads, setLoadingThreads] = useState(false);
 
+
     // UI State
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
     const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
     const [editTitle, setEditTitle] = useState("");
     const editInputRef = useRef<HTMLInputElement>(null);
+
+    // AI Toggle State (Persisted in localStorage)
+    const [isAIEnabled, setIsAIEnabled] = useState(true);
+
+    useEffect(() => {
+        const stored = localStorage.getItem("enableAI");
+        if (stored !== null) {
+            setIsAIEnabled(stored === "true");
+        }
+    }, []);
+
+    const toggleAI = () => {
+        const newState = !isAIEnabled;
+        setIsAIEnabled(newState);
+        localStorage.setItem("enableAI", String(newState));
+    };
 
     // Fetch threads on mount/user change
     useEffect(() => {
@@ -374,6 +391,22 @@ export default function Sidebar() {
                                 <Mail size={16} className="text-nodus-green" />
                                 <span className="text-xs font-medium">Contact Developer</span>
                             </a>
+
+                            <div className="px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-zinc-200 dark:border-white/5">
+                                <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Enable AI Tutor</span>
+                                <button
+                                    onClick={toggleAI}
+                                    className={cn(
+                                        "w-8 h-4 rounded-full transition-colors relative",
+                                        isAIEnabled ? "bg-nodus-green" : "bg-zinc-300 dark:bg-zinc-600"
+                                    )}
+                                >
+                                    <span className={cn(
+                                        "absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all",
+                                        isAIEnabled ? "left-4.5" : "left-0.5"
+                                    )} style={{ left: isAIEnabled ? "18px" : "2px" }} />
+                                </button>
+                            </div>
 
                             <div className="px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors">
                                 <span className="text-xs font-medium text-zinc-400">Appearance</span>

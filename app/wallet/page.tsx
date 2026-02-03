@@ -215,6 +215,106 @@ export default function WalletPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Add/Edit Modal Overlay */}
+            {isAdding && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white dark:bg-[#1e1e1e] w-full max-w-lg rounded-2xl shadow-2xl border border-zinc-200 dark:border-white/10 overflow-hidden animate-in zoom-in-95 duration-200">
+
+                        {/* Modal Header */}
+                        <div className="px-6 py-4 border-b border-zinc-200 dark:border-white/5 flex items-center justify-between bg-zinc-50 dark:bg-[#252525]">
+                            <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
+                                {editingItem ? 'Edit Item' : activeTab === 'concepts' ? 'New Concept' : 'Log New Error'}
+                            </h3>
+                            <button onClick={closeForm} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 space-y-4">
+                            {/* Title Input */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Title</label>
+                                <input
+                                    type="text"
+                                    value={newTitle}
+                                    onChange={(e) => setNewTitle(e.target.value)}
+                                    placeholder={activeTab === 'concepts' ? "e.g. React useEffect Hook" : "e.g. Navbar Rendering Issue"}
+                                    className="w-full px-4 py-2.5 rounded-lg bg-zinc-50 dark:bg-[#121212] border border-zinc-200 dark:border-white/10 focus:border-blue-500 focus:outline-none transition-colors text-sm"
+                                    autoFocus
+                                />
+                            </div>
+
+                            {/* Tags Input */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Tags (comma separated)</label>
+                                <input
+                                    type="text"
+                                    value={newTags}
+                                    onChange={(e) => setNewTags(e.target.value)}
+                                    placeholder="e.g. react, hooks, frontend"
+                                    className="w-full px-4 py-2.5 rounded-lg bg-zinc-50 dark:bg-[#121212] border border-zinc-200 dark:border-white/10 focus:border-blue-500 focus:outline-none transition-colors text-sm"
+                                />
+                            </div>
+
+                            {/* Summary Textarea */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Summary / Details</label>
+                                <textarea
+                                    value={newSummary}
+                                    onChange={(e) => setNewSummary(e.target.value)}
+                                    rows={5}
+                                    placeholder={activeTab === 'concepts' ? "Explain the concept in your own words..." : "Paste the error stack trace or explain what went wrong..."}
+                                    className="w-full px-4 py-2.5 rounded-lg bg-zinc-50 dark:bg-[#121212] border border-zinc-200 dark:border-white/10 focus:border-blue-500 focus:outline-none transition-colors text-sm resize-none"
+                                />
+                            </div>
+
+                            {/* Error Specific: Severity */}
+                            {activeTab === 'errors' && (
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Severity</label>
+                                    <div className="flex gap-2">
+                                        {(['low', 'medium', 'high'] as const).map((level) => (
+                                            <button
+                                                key={level}
+                                                onClick={() => setNewSeverity(level)}
+                                                className={cn(
+                                                    "flex-1 py-2 rounded-lg text-xs font-medium capitalize border transition-all",
+                                                    newSeverity === level
+                                                        ? (level === 'high' ? "bg-red-500 text-white border-red-500" :
+                                                            level === 'medium' ? "bg-orange-500 text-white border-orange-500" :
+                                                                "bg-blue-500 text-white border-blue-500")
+                                                        : "bg-transparent text-zinc-500 border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/5"
+                                                )}
+                                            >
+                                                {level}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 border-t border-zinc-200 dark:border-white/5 bg-zinc-50 dark:bg-[#252525] flex justify-end gap-3">
+                            <button
+                                onClick={closeForm}
+                                className="px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveItem}
+                                disabled={!newTitle.trim()}
+                                className="px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {editingItem ? 'Save Changes' : 'Create Item'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

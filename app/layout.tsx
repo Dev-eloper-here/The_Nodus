@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 };
 
 import { AuthProvider } from "@/lib/auth";
+import AgentMonitor from "@/components/AgentMonitor";
 
 // ... (imports)
 
@@ -30,6 +31,7 @@ export default function RootLayout({
                     disableTransitionOnChange
                 >
                     <AuthProvider>
+                        <AgentMonitor />
                         {children}
                     </AuthProvider>
                 </ThemeProvider>

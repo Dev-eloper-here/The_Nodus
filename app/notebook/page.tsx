@@ -204,6 +204,12 @@ export default function NotebookPage() {
         localStorage.setItem("nodus_notebook_notes", notes);
     }, [notes]);
 
+    const handleNewNote = () => {
+        const timestamp = new Date().toLocaleString();
+        // Append a new section header
+        setNotes((prev) => prev + `\n\n---\n**New Note (${timestamp})**\n`);
+    };
+
     // Custom Code Block Renderer (Defined inside component to access setEditorCode)
     const CodeBlock = ({ inline, className, children, ...props }: any) => {
         const match = /language-(\w+)/.exec(className || '');
@@ -470,7 +476,10 @@ export default function NotebookPage() {
                             <h2 className="font-medium text-xs text-amber-600 dark:text-amber-500 uppercase tracking-widest flex items-center gap-2">
                                 Notes
                             </h2>
-                            <button className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors">
+                            <button
+                                onClick={handleNewNote}
+                                className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                            >
                                 <Plus size={16} />
                             </button>
                         </div>
